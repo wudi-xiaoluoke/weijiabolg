@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.weijiahome.mapper.CommentsMapper">
+
+
+
+    <!-- 获取评论列表（支持分页、按文章筛选） -->
+    <select id="getComments" resultType="com.example.weijiahome.entity.po.Comments">
+        SELECT *
+        from blog.comments
+        <where>
+            <if test="article_id != null">and article_id =#{articleId}</if>
+        </where>
+        limit #{pageNum},#{pageSize}
+    </select>
+</mapper>

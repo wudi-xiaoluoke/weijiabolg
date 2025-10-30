@@ -1,0 +1,156 @@
+/* 主题配置文件 */
+:root {
+  /* 颜色系统 */
+  /* 主色调 */
+  --primary-color: #409eff;
+  --primary-hover: #66b1ff;
+  --primary-active: #3a8ee6;
+  
+  /* 辅助色 */
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  
+  /* 功能色 */
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #c0c4cc;
+  
+  /* 边框色 */
+  --border-color-base: #dcdfe6;
+  --border-color-light: #e4e7ed;
+  --border-color-lighter: #ebeef5;
+  --border-color-extra-light: #f2f6fc;
+  
+  /* 背景色 */
+  --bg-color-base: #f5f7fa;
+  --bg-color-white: #ffffff;
+  --bg-color-card: #ffffff;
+  --bg-color-hover: #f5f7fa;
+  
+  /* 字体系统 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-extra-large: 20px;
+  --font-size-large: 18px;
+  --font-size-medium: 16px;
+  --font-size-base: 14px;
+  --font-size-small: 13px;
+  --font-size-extra-small: 12px;
+  
+  /* 行高 */
+  --line-height-base: 1.5;
+  --line-height-sm: 1.25;
+  --line-height-lg: 1.75;
+  
+  /* 间距系统 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-xxl: 24px;
+  --spacing-xxxl: 32px;
+  
+  /* 圆角系统 */
+  --border-radius-base: 4px;
+  --border-radius-small: 2px;
+  --border-radius-large: 6px;
+  --border-radius-circle: 50%;
+  
+  /* 阴影系统 */
+  --shadow-base: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
+  --shadow-light: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --shadow-dark: 0 4px 20px rgba(0, 0, 0, 0.15);
+  
+  /* 过渡动画 */
+  --transition-base: 0.3s ease-in-out;
+  --transition-fast: 0.2s ease-in-out;
+  
+  /* 布局常量 */
+  --header-height: 60px;
+  --sidebar-width: 240px;
+  --content-padding: 20px;
+  
+  /* 状态色 */
+  --disabled-color: #c0c4cc;
+  --disabled-bg-color: #f5f7fa;
+  
+  /* 滚动条样式 */
+  --scrollbar-width: 6px;
+  --scrollbar-bg-color: #f1f1f1;
+  --scrollbar-thumb-color: #c1c1c1;
+  --scrollbar-thumb-hover-color: #a8a8a8;
+}
+
+/* 暗黑主题变量 */
+[data-theme="dark"] {
+  /* 主色调 */
+  --primary-color: #409eff;
+  --primary-hover: #66b1ff;
+  --primary-active: #3a8ee6;
+  
+  /* 辅助色 */
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --info-color: #909399;
+  
+  /* 功能色 */
+  --text-primary: #f5f7fa;
+  --text-regular: #dcdfe6;
+  --text-secondary: #909399;
+  --text-placeholder: #606266;
+  
+  /* 边框色 */
+  --border-color-base: #4e5969;
+  --border-color-light: #434e5e;
+  --border-color-lighter: #3a4351;
+  --border-color-extra-light: #303643;
+  
+  /* 背景色 */
+  --bg-color-base: #1a1a1a;
+  --bg-color-white: #2c3e50;
+  --bg-color-card: #2c3e50;
+  --bg-color-hover: #34495e;
+  
+  /* 状态色 */
+  --disabled-color: #606266;
+  --disabled-bg-color: #303643;
+  
+  /* 滚动条样式 */
+  --scrollbar-bg-color: #303643;
+  --scrollbar-thumb-color: #4e5969;
+  --scrollbar-thumb-hover-color: #606266;
+}
+
+/* 响应式变量 */
+@media (max-width: 1200px) {
+  :root {
+    --sidebar-width: 200px;
+    --content-padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 180px;
+    --header-height: 50px;
+    --content-padding: 12px;
+    
+    --font-size-extra-large: 18px;
+    --font-size-large: 16px;
+    --font-size-medium: 15px;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --content-padding: 8px;
+    
+    --spacing-xl: 16px;
+    --spacing-xxl: 20px;
+    --spacing-xxxl: 24px;
+  }
+}

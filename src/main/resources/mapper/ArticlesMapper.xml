@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.weijiahome.mapper.ArticlesMapper">
+
+    <select id="getArticles" resultType="com.example.weijiahome.entity.vo.ArticleVO">
+        select 
+            id,
+            title,
+            summary,
+            view_count as viewCount,
+            comment_count as commentCount,
+            like_count as likeCount,
+            create_time as createdAt,
+            update_time as updatedAt
+        from blog.articles
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%') OR content LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        <if test="sort != null and order != null">
+            ORDER BY ${sort} ${order}
+        </if>
+        <if test="sort == null or order == null">
+            ORDER BY create_time DESC
+        </if>
+        <if test="page != null and pageSize != null">
+            LIMIT #{offset}, #{pageSize}
+        </if>
+    </select>
+</mapper>
