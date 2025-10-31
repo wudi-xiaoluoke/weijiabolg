@@ -46,6 +46,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Star, StarFilled, Share, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ArticleComments from '../../components/ArticleComments.vue'
+import { articleAPI } from '../../api/index.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -65,142 +66,55 @@ const article = ref({
 const liked = ref(false)
 const favorited = ref(false)
 
-// 模拟文章数据
-const mockArticleData = {
-  1: {
-    id: 1,
-    title: 'Vue 3 组合式API深度解析',
-    author: '技术博主',
-    date: '2024-01-15',
-    category: '前端开发',
-    views: 1245,
-    likes: 89,
-    content: `
-      <h2>什么是组合式API？</h2>
-      <p>Vue 3 引入的组合式 API (Composition API) 是一组 API，使我们能够以更灵活的方式组织组件的逻辑。</p>
-      
-      <h2>为什么需要组合式API？</h2>
-      <p>在 Vue 2 中，我们使用选项式 API (Options API) 组织代码。当组件变得复杂时，相关的逻辑会被分散在不同的选项中，使得代码难以维护和重用。</p>
-      
-      <h2>组合式API的核心函数</h2>
-      <h3>1. setup() 函数</h3>
-      <pre><code>export default {
-  setup() {
-    // 这里是组合式API的入口
-    return {
-      // 返回的响应式状态和方法
-    }
+// 从后端获取文章数据
+const fetchArticleDetail = async () => {
+  try {
+    console.log('获取文章详情，文章ID:', articleId);
+    const response = await articleAPI.getArticleById(articleId);
+    console.log('文章详情获取成功:', response);
+    // 根据后端返回的数据结构调整绑定
+    article.value = {
+      id: response.id || articleId,
+      title: response.title || '文章标题',
+      author: response.author?.username || response.author || '未知作者',
+      date: response.createdAt ? formatDate(response.createdAt) : new Date().toLocaleDateString(),
+      category: response.category?.name || response.category || '未分类',
+      views: response.viewCount || response.views || 0,
+      likes: response.likeCount || response.likes || 0,
+      content: response.content || '<p>暂无内容</p>'
+    };
+  } catch (error) {
+    console.error('获取文章详情失败:', error);
+    ElMessage.error('获取文章详情失败');
+    // 使用备用数据
+    article.value = {
+      id: articleId,
+      title: '文章加载失败',
+      author: '未知',
+      date: new Date().toLocaleDateString(),
+      category: '未分类',
+      views: 0,
+      likes: 0,
+      content: '<p>无法加载文章内容，请稍后重试</p>'
+    };
   }
-}</code></pre>
-      
-      <h3>2. ref() 函数</h3>
-      <pre><code>import { ref } from 'vue'
+};
 
-const count = ref(0)
-console.log(count.value) // 0
-
-// 修改值
-count.value++
-console.log(count.value) // 1</code></pre>
-      
-      <h3>3. reactive() 函数</h3>
-      <pre><code>import { reactive } from 'vue'
-
-const state = reactive({
-  count: 0,
-  message: 'Hello'
-})
-
-// 修改值
-state.count++</code></pre>
-      
-      <h3>4. computed() 函数</h3>
-      <pre><code>import { ref, computed } from 'vue'
-
-const count = ref(0)
-const doubleCount = computed(() => count.value * 2)</code></pre>
-      
-      <h2>使用组合式API的最佳实践</h2>
-      <ol>
-        <li>按功能组织相关的逻辑代码</li>
-        <li>将可复用的逻辑提取为组合函数</li>
-        <li>合理使用响应式API</li>
-        <li>结合TypeScript获得更好的类型支持</li>
-      </ol>
-    `
-  },
-  2: {
-    id: 2,
-    title: 'Element Plus 组件库最佳实践',
-    author: '技术博主',
-    date: '2024-01-10',
-    category: '前端框架',
-    views: 986,
-    likes: 67,
-    content: `
-      <h2>Element Plus 简介</h2>
-      <p>Element Plus 是一套基于 Vue 3 的桌面端组件库，为开发者、设计师和产品经理提供了一致的开发体验。</p>
-      
-      <h2>安装与配置</h2>
-      <pre><code># NPM
-npm install element-plus --save
-
-# Yarn
-yarn add element-plus
-
-# pnpm
-pnpm install element-plus</code></pre>
-      
-      <h2>按需导入</h2>
-      <p>为了减小打包体积，推荐使用按需导入：</p>
-      <pre><code>// vite.config.ts
-import { defineConfig } from 'vite'
-import AutoImport from 'unplugin-auto-import/vite'
-import Components from 'unplugin-vue-components/vite'
-import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
-
-export default defineConfig({
-  // ...
-  plugins: [
-    // ...
-    AutoImport({
-      resolvers: [ElementPlusResolver()],
-    }),
-    Components({
-      resolvers: [ElementPlusResolver()],
-    }),
-  ],
-})</code></pre>
-      
-      <h2>组件使用技巧</h2>
-      <h3>表单验证</h3>
-      <pre><code>const ruleFormRef = ref()
-const rules = {
-  name: [
-    { required: true, message: '请输入名称', trigger: 'blur' },
-    { min: 3, max: 5, message: '长度在 3 到 5 个字符', trigger: 'blur' }
-  ]
-}</code></pre>
-      
-      <h3>表格数据处理</h3>
-      <p>使用懒加载、虚拟滚动处理大量数据，避免一次性渲染过多DOM元素。</p>
-    `
-  }
-}
+// 格式化日期函数
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+};
 
 // 生命周期钩子
 onMounted(() => {
-  // 这里应该调用API获取真实数据
-  // 暂时使用模拟数据
-  const articleData = mockArticleData[articleId]
-  if (articleData) {
-    article.value = articleData
-    // 模拟增加阅读量
-    article.value.views++
-  } else {
-    ElMessage.error('文章不存在')
-    router.push('/article')
-  }
+  fetchArticleDetail();
 })
 
 // 方法

@@ -137,7 +137,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { updatePublishStatus } from '../../api/modules/article'
+import { articleAPI } from '../../api/index.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -148,20 +148,7 @@ const fileList = ref([])
 const isEditMode = computed(() => !!route.params.id)
 const articleId = parseInt(route.params.id)
 
-// 文章分类选项
-const categories = [
-  { label: '前端开发', value: '前端开发' },
-  { label: '后端开发', value: '后端开发' },
-  { label: '移动开发', value: '移动开发' },
-  { label: '人工智能', value: '人工智能' },
-  { label: '大数据', value: '大数据' },
-  { label: '云计算', value: '云计算' },
-  { label: 'DevOps', value: 'DevOps' },
-  { label: '编程语言', value: '编程语言' },
-  { label: '前端框架', value: '前端框架' },
-  { label: '开发工具', value: '开发工具' },
-  { label: '工程化', value: '工程化' }
-]
+// 删除重复的categories声明
 
 // 表单数据
 const articleForm = reactive({
@@ -178,179 +165,165 @@ const articleForm = reactive({
 const rules = {
   title: [
     { required: true, message: '请输入文章标题', trigger: 'blur' },
-    { min: 5, max: 100, message: '标题长度在 5 到 100 个字符', trigger: 'blur' }
+    { min: 3, max: 100, message: '标题长度在 3 到 100 个字符', trigger: 'blur' }
   ],
   category: [
     { required: true, message: '请选择文章分类', trigger: 'change' }
   ],
   content: [
-    { required: true, message: '请输入文章内容', trigger: 'blur' },
-    { min: 10, message: '文章内容至少 10 个字符', trigger: 'blur' }
+    { required: true, message: '请输入文章内容', trigger: 'blur' }
   ],
   summary: [
-    { required: false, message: '请输入文章摘要', trigger: 'blur' },
-    { max: 200, message: '摘要长度不超过 200 个字符', trigger: 'blur' }
+    { required: true, message: '请输入文章摘要', trigger: 'blur' },
+    { min: 50, max: 200, message: '摘要长度在 50 到 200 个字符', trigger: 'blur' }
   ]
 }
 
-// 模拟文章数据
-const mockArticleData = {
-  1: {
-    id: 1,
-    title: 'Vue 3 组合式API深度解析',
-    category: '前端开发',
-    tags: 'Vue,Vue3,组合式API',
-    coverImage: '',
-    content: '# Vue 3 组合式API深度解析\n\n## 什么是组合式API？\nVue 3 引入的组合式 API (Composition API) 是一组 API，使我们能够以更灵活的方式组织组件的逻辑。\n\n## 为什么需要组合式API？\n在 Vue 2 中，我们使用选项式 API (Options API) 组织代码。当组件变得复杂时，相关的逻辑会被分散在不同的选项中，使得代码难以维护和重用。\n\n## 组合式API的核心函数\n\n### 1. setup() 函数\n```javascript\nexport default {\n  setup() {\n    // 这里是组合式API的入口\n    return {\n      // 返回的响应式状态和方法\n    }\n  }\n}\n```\n\n### 2. ref() 函数\n```javascript\nimport { ref } from \'vue\'\n\nconst count = ref(0)\nconsole.log(count.value) // 0\n\n// 修改值\ncount.value++\nconsole.log(count.value) // 1\n```\n\n## 使用组合式API的最佳实践\n1. 按功能组织相关的逻辑代码\n2. 将可复用的逻辑提取为组合函数\n3. 合理使用响应式API\n4. 结合TypeScript获得更好的类型支持',
-    summary: '本文深入解析Vue 3组合式API的核心概念、使用方法和最佳实践，帮助开发者更好地理解和应用这一新特性。',
-    status: 'published'
+// 分类列表
+const categories = ref([
+  { label: '前端开发', value: '前端开发' },
+  { label: '后端开发', value: '后端开发' },
+  { label: '数据库', value: '数据库' },
+  { label: 'DevOps', value: 'DevOps' },
+  { label: '算法', value: '算法' },
+  { label: '其他', value: '其他' }
+])
+
+// 文件变更处理
+const handleFileChange = (file, fileList) => {
+  // 这里只是简单处理，实际项目中应该上传到服务器
+  console.log('文件变更:', file, fileList)
+  if (file && file.url) {
+    articleForm.coverImage = file.url;
   }
 }
 
-// 生命周期钩子
-onMounted(() => {
-  if (isEditMode.value) {
-    // 这里应该调用API获取真实数据
-    // 暂时使用模拟数据
-    const articleData = mockArticleData[articleId]
-    if (articleData) {
-      Object.assign(articleForm, articleData)
-    } else {
-      ElMessage.error('文章不存在')
-      router.push('/article')
-    }
-  }
-})
-
-// 方法
-const handleBack = () => {
-  router.back()
-}
-
-const handleSubmit = async () => {
-  articleFormRef.value.validate(async (valid) => {
-    if (valid) {
-      const operation = isEditMode.value ? '更新' : '发布'
-      
-      try {
-        await ElMessageBox.confirm(
-          `确定要${operation}这篇文章吗？`,
-          '确认操作',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'info'
-          }
-        )
-        
-        // 如果是编辑模式，且需要更新发布状态
-        if (isEditMode.value) {
-          const isPublished = articleForm.status === 'published'
-          await updatePublishStatus(articleId, isPublished)
-        }
-        
-        // 这里应该调用API保存文章内容
-        // await articleAPI.saveArticle(...)
-        
-        ElMessage.success(`文章${operation}成功`)
-        router.push('/article')
-      } catch (error) {
-        if (error === 'cancel') {
-          ElMessage.info('已取消操作')
-        } else {
-          console.error('保存文章失败:', error)
-          ElMessage.error('保存失败，请稍后重试')
-        }
-      }
-    } else {
-      ElMessage.warning('请检查表单填写是否正确')
-      return false
-    }
-  })
-}
-
-const handleCancel = () => {
-  if (hasFormChanges()) {
-    ElMessageBox.confirm(
-      '表单内容已修改，确定要离开吗？',
-      '确认离开',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-      .then(() => {
-        router.push('/article')
-      })
-      .catch(() => {
-        // 取消操作，留在当前页面
-      })
-  } else {
-    router.push('/article')
-  }
-}
-
-const handleDelete = () => {
-  ElMessageBox.confirm(
-    '确定要删除这篇文章吗？此操作不可撤销。',
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    }
-  )
-    .then(() => {
-      // 这里应该调用API删除文章
-      ElMessage.success('文章删除成功')
-      router.push('/article')
-    })
-    .catch(() => {
-      ElMessage.info('已取消删除')
-    })
-}
-
-const handleFileChange = (file) => {
-  // 这里应该处理文件上传逻辑
-  // 暂时只是保存文件路径
-  articleForm.coverImage = file.name
-}
-
+// 插入文本到编辑器
 const insertText = (before, after) => {
-  const textarea = document.querySelector('.markdown-editor textarea')
+  const textarea = document.querySelector('.markdown-editor')
   if (textarea) {
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const selectedText = articleForm.content.substring(start, end)
+    const selectedText = textarea.value.substring(start, end)
     const newText = before + selectedText + after
     
     articleForm.content = 
-      articleForm.content.substring(0, start) + 
+      textarea.value.substring(0, start) + 
       newText + 
-      articleForm.content.substring(end)
+      textarea.value.substring(end)
     
     // 设置光标位置
     setTimeout(() => {
       textarea.focus()
-      textarea.selectionStart = start + before.length
-      textarea.selectionEnd = start + before.length + selectedText.length
+      const newCursorPos = start + before.length + selectedText.length
+      textarea.setSelectionRange(newCursorPos, newCursorPos)
     }, 0)
   }
 }
 
-const hasFormChanges = () => {
-  // 检查表单是否有修改
-  if (isEditMode.value) {
-    const originalData = mockArticleData[articleId]
-    return JSON.stringify(articleForm) !== JSON.stringify(originalData)
+// 获取文章详情
+const getArticleDetail = async () => {
+  try {
+    console.log('获取文章详情，文章ID:', articleId);
+    const response = await articleAPI.getArticleById(articleId);
+    console.log('文章详情获取成功:', response);
+    
+    // 根据后端返回的数据结构填充表单
+    articleForm.title = response.title || '';
+    articleForm.category = response.category?.name || response.category || '';
+    articleForm.tags = response.tags ? (Array.isArray(response.tags) ? response.tags.join(',') : response.tags) : '';
+    articleForm.coverImage = response.coverImage || response.cover_url || '';
+    articleForm.content = response.content || '';
+    articleForm.summary = response.summary || '';
+    articleForm.status = response.status || 'draft';
+    
+    // 如果有封面图，设置文件列表
+    if (articleForm.coverImage) {
+      fileList.value = [{ url: articleForm.coverImage, name: '封面图' }];
+    }
+    
+    ElMessage.success('获取文章详情成功')
+  } catch (error) {
+    console.error('获取文章详情失败:', error);
+    ElMessage.error('获取文章详情失败')
   }
-  
-  // 新建模式下，只要有一个字段有值就算有修改
-  return Object.values(articleForm).some(value => 
-    value !== null && value !== undefined && value !== ''
-  )
 }
+
+// 提交表单
+const handleSubmit = async () => {
+  articleFormRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        const formData = {
+          title: articleForm.title,
+          category: articleForm.category,
+          tags: articleForm.tags ? articleForm.tags.split(',').map(tag => tag.trim()) : [],
+          coverImage: articleForm.coverImage,
+          content: articleForm.content,
+          summary: articleForm.summary,
+          status: articleForm.status
+        };
+        
+        console.log('提交文章数据:', formData);
+        
+        if (isEditMode.value) {
+          // 更新文章
+          await articleAPI.updateArticle(articleId, formData);
+          ElMessage.success('文章更新成功');
+        } else {
+          // 创建文章
+          const response = await articleAPI.createArticle(formData);
+          ElMessage.success('文章创建成功');
+          router.push(`/article/detail/${response.id || 1}`);
+          return;
+        }
+        
+        router.push(`/article/detail/${articleId}`);
+      } catch (error) {
+        console.error('提交文章失败:', error);
+        ElMessage.error(isEditMode.value ? '文章更新失败' : '文章创建失败');
+      }
+    }
+  })
+}
+
+// 删除文章
+const handleDelete = async () => {
+  ElMessageBox.confirm('确定要删除这篇文章吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      console.log('删除文章，文章ID:', articleId);
+      await articleAPI.deleteArticle(articleId);
+      ElMessage.success('文章删除成功');
+      router.push('/article');
+    } catch (error) {
+      console.error('删除文章失败:', error);
+      ElMessage.error('文章删除失败');
+    }
+  }).catch(() => {
+    // 取消删除
+  })
+}
+
+// 返回上一页
+const handleBack = () => {
+  router.back()
+}
+
+// 取消编辑
+const handleCancel = () => {
+  router.back()
+}
+
+// 页面加载时，如果是编辑模式则获取文章详情
+onMounted(() => {
+  if (isEditMode.value) {
+    getArticleDetail();
+  }
+})
 </script>
 
 <style scoped>

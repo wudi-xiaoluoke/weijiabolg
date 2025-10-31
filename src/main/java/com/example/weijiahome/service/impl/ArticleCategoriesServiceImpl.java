@@ -72,8 +72,13 @@ public class ArticleCategoriesServiceImpl extends ServiceImpl<ArticleCategoriesM
     }
     //通过文章id查找分类 返回分类对象
     @Override
-    public Categories getCategorie(Integer id) {
-        return categoriesService.getById(id);
+    public Integer getCategorie(Integer id) {
+        Integer categoryId = categoryArticleMapper.selectByArticleId(id);
+        if (categoryId ==null){
+            return null;
+        }else {
+            return categoryId;
+        }
     }
 
 }
