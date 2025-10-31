@@ -4,6 +4,7 @@ import com.example.weijiahome.entity.po.ArticleCategories;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.example.weijiahome.entity.po.Categories;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 /**
  * <p>
@@ -15,6 +16,6 @@ import org.apache.ibatis.annotations.Mapper;
  */
 @Mapper
 public interface ArticleCategoriesMapper extends BaseMapper<ArticleCategories> {
-
-    Categories getArticles(Integer id);
+@Select("select category_id from blog.article_categories where article_id =#{id}")
+    Integer selectByArticleId(Integer id);
 }

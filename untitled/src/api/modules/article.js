@@ -11,7 +11,7 @@ import request from '../../utils/request'
  * @returns {Promise}
  */
 export const getArticles = (params = {}) => {
-  return request.get('/articles', { params })
+  return request.get('/api/articles', { params })
 }
 
 /**
@@ -20,7 +20,7 @@ export const getArticles = (params = {}) => {
  * @returns {Promise}
  */
 export const getArticleById = (id) => {
-  return request.get(`/articles/${id}`)
+  return request.get(`/api/articles/${id}`)
 }
 
 /**
@@ -33,7 +33,7 @@ export const getArticleById = (id) => {
  * @returns {Promise}
  */
 export const createArticle = (data) => {
-  return request.post('/articles', data)
+  return request.post('/api/articles', data)
 }
 
 /**
@@ -43,7 +43,7 @@ export const createArticle = (data) => {
  * @returns {Promise}
  */
 export const updateArticle = (id, data) => {
-  return request.put(`/articles/${id}`, data)
+  return request.put(`/api/articles/${id}`, data)
 }
 
 /**
@@ -52,7 +52,7 @@ export const updateArticle = (id, data) => {
  * @returns {Promise}
  */
 export const deleteArticle = (id) => {
-  return request.delete(`/articles/${id}`)
+  return request.delete(`/api/articles/${id}`)
 }
 
 /**
@@ -62,7 +62,7 @@ export const deleteArticle = (id) => {
  * @returns {Promise}
  */
 export const updatePublishStatus = (id, published) => {
-  return request.put(`/articles/${id}/publish-status`, { published })
+  return request.put(`/api/articles/${id}/publish-status`, { published })
 }
 
 /**
@@ -72,7 +72,7 @@ export const updatePublishStatus = (id, published) => {
  * @returns {Promise}
  */
 export const updateLikeStatus = (id, liked) => {
-  return request.put(`/articles/${id}/like-status`, { liked })
+  return request.put(`/api/articles/${id}/like-status`, { liked })
 }
 
 /**
@@ -82,7 +82,7 @@ export const updateLikeStatus = (id, liked) => {
  * @returns {Promise}
  */
 export const getArticleComments = (articleId, params = {}) => {
-  return request.get(`/articles/${articleId}/comments`, { params })
+  return request.get(`/api/articles/${articleId}/comments`, { params })
 }
 
 /**
@@ -94,7 +94,7 @@ export const getArticleComments = (articleId, params = {}) => {
  * @returns {Promise}
  */
 export const createArticleComment = (articleId, data) => {
-  return request.post(`/articles/${articleId}/comments`, data)
+  return request.post(`/api/articles/${articleId}/comments`, data)
 }
 
 // 获取用户文章列表

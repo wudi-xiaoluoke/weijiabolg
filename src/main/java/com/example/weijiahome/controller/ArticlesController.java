@@ -30,7 +30,7 @@ import java.util.List;
  * @since 2025-10-12
  */
 @RestController
-@RequestMapping("/api/articles")
+@RequestMapping("/articles")
 public class ArticlesController {
     @Autowired
     private ICommentLikesService commentLikesService;

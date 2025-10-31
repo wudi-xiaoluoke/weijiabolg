@@ -49,10 +49,18 @@
       
       <el-table :data="filteredArticles" style="width: 100%">
         <el-table-column prop="title" label="标题" min-width="300" />
-        <el-table-column prop="category" label="分类" width="120" />
-        <el-table-column prop="date" label="发布日期" width="150" />
-        <el-table-column prop="views" label="阅读量" width="100" />
-        <el-table-column prop="comments" label="评论数" width="100" />
+        <el-table-column prop="category" label="分类" width="120">
+          <template #default="scope">
+            {{ getCategoryName(scope.row.category) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createdAt" label="发布日期" width="150">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="viewCount" label="阅读量" width="100" />
+        <el-table-column prop="commentCount" label="评论数" width="100" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="scope">
             <div class="article-actions">
@@ -136,7 +144,8 @@ const fetchArticles = async () => {
     const data = response.data || response
     // 从PageResultVO中获取数据
     articles.value = data.records || data.list || []
-    total.value = data.total || 0
+    // 修复：从pagination对象中获取total值
+    total.value = data.pagination?.total || data.total || 0
   } catch (error) {
     console.error('获取文章列表失败:', error)
     ElMessage.error('获取文章列表失败，请稍后重试')
@@ -147,47 +156,85 @@ const fetchArticles = async () => {
         id: 1,
         title: 'Vue 3 组合式API深度解析',
         category: '前端开发',
-        date: '2024-01-15',
-        views: 1245,
-        comments: 42
+        createdAt: '2024-01-15',
+        viewCount: 1245,
+        commentCount: 42
       },
       {
         id: 2,
         title: 'Element Plus 组件库最佳实践',
         category: '前端框架',
-        date: '2024-01-10',
-        views: 986,
-        comments: 35
+        createdAt: '2024-01-10',
+        viewCount: 986,
+        commentCount: 35
       },
       {
         id: 3,
         title: 'Vite 构建工具性能优化技巧',
         category: '开发工具',
-        date: '2024-01-05',
-        views: 763,
-        comments: 28
+        createdAt: '2024-01-05',
+        viewCount: 763,
+        commentCount: 28
       },
       {
         id: 4,
         title: 'TypeScript 高级类型系统详解',
         category: '编程语言',
-        date: '2024-01-01',
-        views: 1542,
-        comments: 56
+        createdAt: '2024-01-01',
+        viewCount: 1542,
+        commentCount: 56
       },
       {
         id: 5,
         title: '前端工程化实践指南',
         category: '工程化',
-        date: '2023-12-28',
-        views: 1024,
-        comments: 45
+        createdAt: '2023-12-28',
+        viewCount: 1024,
+        commentCount: 45
       }
     ]
     total.value = articles.value.length
   } finally {
     loading.value = false
   }
+}
+
+// 格式化日期函数
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  
+  // 尝试将各种格式的日期字符串转换为Date对象
+  const date = new Date(dateString)
+  
+  // 检查是否为有效日期
+  if (isNaN(date.getTime())) return dateString
+  
+  // 格式化为YYYY-MM-DD
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  
+  return `${year}-${month}-${day}`
+}
+
+// 获取分类名称
+const getCategoryName = (category) => {
+  // 处理分类对象的各种可能情况
+  if (!category || category === '' || (Array.isArray(category) && category.length === 0)) {
+    return '暂无分类'
+  }
+  
+  // 如果是字符串，直接返回
+  if (typeof category === 'string') return category
+  
+  // 如果是对象，尝试获取name字段
+  if (typeof category === 'object') {
+    const categoryName = category.name || category.title || category.categoryName
+    return categoryName || '暂无分类'
+  }
+  
+  // 其他情况返回'暂无分类'
+  return '暂无分类'
 }
 
 // 方法
@@ -259,6 +306,7 @@ const handleCurrentChange = (current) => {
   max-width: 1600px;
   margin: 0 auto;
   overflow-x: auto;
+  font-size: 15px; /* 增加整体字体大小 */
 }
 
 .card-header {
@@ -278,28 +326,30 @@ const handleCurrentChange = (current) => {
 .stat-item {
   background-color: white;
   border-radius: 6px;
-  padding: 12px 16px;
+  padding: 16px 20px; /* 增加内边距 */
   text-align: center;
   border: 1px solid #ebeef5;
   transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* 增加轻微阴影 */
 }
 
 .stat-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 增强悬停阴影 */
   transform: translateY(-2px);
 }
 
 .stat-label {
   display: block;
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 4px;
+  font-size: 15px; /* 增加标签字体大小 */
+  color: #409eff; /* 改为更醒目的颜色 */
+  margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .stat-value {
   display: block;
-  font-size: 20px;
-  font-weight: 600;
+  font-size: 24px; /* 增大数值字体 */
+  font-weight: 700; /* 加粗 */
   color: #303133;
 }
 
@@ -307,6 +357,7 @@ const handleCurrentChange = (current) => {
   margin-bottom: 20px;
   width: 100%;
   max-width: 500px;
+  font-size: 15px; /* 增加搜索框字体大小 */
 }
 
 .pagination-container {
@@ -316,26 +367,116 @@ const handleCurrentChange = (current) => {
   padding-top: 16px;
 }
 
-/* 表格优化 */
+/* 表格样式优化 - 增强可读性 */
 .el-table {
-  --el-table-header-bg-color: var(--bg-color-light, #fafafa);
-  --el-table-border-color: var(--border-color-base, #ebeef5);
+  --el-table-header-bg-color: #f0f2f5;
+  --el-table-border-color: #dcdfe6;
+  font-size: 15px; /* 增加表格字体大小 */
+  line-height: 1.8; /* 增加行高 */
+}
+
+/* 确保表格内容清晰可见 */
+.el-table .cell {
+  font-size: 15px;
+  padding: 12px 8px; /* 增加单元格内边距 */
+  color: #303133; /* 加深文字颜色 */
+}
+
+/* 表头样式优化 */
+.el-table__header th {
+  font-weight: 700;
+  background-color: #f0f2f5;
+  font-size: 16px;
+  color: #303133;
+  padding: 14px 8px;
+}
+
+/* 表格行样式优化 */
+.el-table__row {
+  height: auto;
+  min-height: 52px;
+  transition: all 0.2s ease;
+}
+
+/* 增强悬停效果 */
+.el-table__row:hover > td {
+  background-color: #ecf5ff !important;
+}
+
+/* 斑马纹优化 */
+.el-table--striped .el-table__row--striped > td {
+  background-color: #fafafa;
+}
+
+/* 表格边框优化 */
+.el-table th,
+.el-table td {
+  border-bottom: 1px solid #ebeef5;
+}
+
+/* 操作按钮样式优化 */
+.article-actions {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.article-actions .el-button--small {
+  padding: 8px 16px; /* 增大按钮尺寸 */
+  font-size: 14px; /* 增加按钮字体大小 */
+  border-radius: 6px;
+  flex-shrink: 0;
+  min-width: 60px; /* 确保按钮有足够宽度 */
+}
+
+/* 确保操作列有足够宽度 */
+.el-table-column--fixed-right {
+  width: 280px !important;
+  min-width: 280px !important;
+  box-sizing: border-box;
+}
+
+/* 搜索框样式优化 */
+.search-input .el-input__inner {
+  padding: 12px;
+  font-size: 15px;
+}
+
+/* 分页组件样式优化 */
+.el-pagination {
+  font-size: 14px;
+}
+
+.el-pagination__sizes .el-input__inner {
+  font-size: 14px;
 }
 
 /* 响应式设计增强 */
 @media (max-width: 1024px) {
   .article-list-container {
     padding: 15px;
+    font-size: 14px;
   }
   
   .search-input {
     max-width: 100%;
+  }
+  
+  .stat-value {
+    font-size: 22px;
+  }
+  
+  .el-table {
+    font-size: 14px;
   }
 }
 
 @media (max-width: 768px) {
   .article-list-container {
     padding: 10px;
+    font-size: 14px;
   }
   
   .card-header {
@@ -348,6 +489,18 @@ const handleCurrentChange = (current) => {
     justify-content: center;
   }
   
+  .stat-item {
+    padding: 12px 16px;
+  }
+  
+  .stat-label {
+    font-size: 14px;
+  }
+  
+  .stat-value {
+    font-size: 20px;
+  }
+  
   /* 表格在移动设备上的优化 */
   .el-table {
     font-size: 14px;
@@ -358,53 +511,67 @@ const handleCurrentChange = (current) => {
     overflow-x: auto;
   }
   
-  /* 调整按钮大小 */
-  .el-button {
+  .el-table .cell {
+    padding: 10px 6px;
     font-size: 13px;
-    padding: 6px 12px;
+  }
+  
+  /* 调整按钮大小 */
+  .article-actions .el-button--small {
+    padding: 7px 12px;
+    font-size: 13px;
+    min-width: 50px;
   }
   
   /* 紧凑显示操作列 */
   .el-table-column--fixed-right {
-    width: 260px !important;
-    min-width: 260px !important;
-  }
-  
-  /* 调整按钮间距 */
-  .article-actions {
-    gap: 6px;
-  }
-  
-  /* 缩小按钮尺寸 */
-  .article-actions .el-button--small {
-    padding: 5px 10px;
-    font-size: 12px;
+    width: 240px !important;
+    min-width: 240px !important;
   }
 }
 
 @media (max-width: 480px) {
   .article-list-container {
     padding: 8px;
+    font-size: 13px;
+  }
+  
+  .stat-item {
+    padding: 10px 12px;
+  }
+  
+  .stat-label {
+    font-size: 13px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
   }
   
   .el-table-column {
-    min-width: 80px;
+    min-width: 70px;
   }
   
   /* 进一步优化操作列在极小屏幕上的显示 */
   .el-table-column--fixed-right {
-    width: 240px !important;
-    min-width: 240px !important;
+    width: 220px !important;
+    min-width: 220px !important;
   }
   
   .article-actions {
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 6px;
   }
   
-  .article-actions .el-button {
+  .article-actions .el-button--small {
     margin: 2px 0;
-    padding: 4px 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    min-width: 45px;
+  }
+  
+  .el-table .cell {
+    padding: 8px 4px;
     font-size: 12px;
   }
 }
@@ -414,32 +581,15 @@ const handleCurrentChange = (current) => {
   transition: all 0.3s ease;
 }
 
-/* 优化表头样式 */
-.el-table__header th {
-  font-weight: 600;
-  background-color: var(--bg-color-light, #f8f9fa);
+/* 确保表格内容颜色对比度足够 */
+.el-table .cell {
+  color: #303133;
+  font-weight: 400;
 }
 
-/* 操作按钮样式 */
-  .article-actions {
-    display: flex;
-    gap: 8px;
-    padding: 4px 0;
-    width: 100%;
-  }
-
-  /* 确保删除按钮显示 */
-  .article-actions .el-button--small {
-    padding: 6px 12px;
-    font-size: 13px;
-    border-radius: 4px;
-    flex-shrink: 0;
-  }
-
-  /* 调整操作列宽度以适应所有三个按钮 */
-  .el-table-column--fixed-right {
-    width: 280px !important;
-    min-width: 280px !important;
-    box-sizing: border-box;
-  }
+/* 改善标题列的显示 */
+.el-table-column[prop="title"] .cell {
+  font-weight: 500;
+  color: #1e293b;
+}
 </style>

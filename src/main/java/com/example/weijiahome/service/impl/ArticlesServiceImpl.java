@@ -13,6 +13,7 @@ import com.example.weijiahome.service.IArticleCategoriesService;
 import com.example.weijiahome.service.IArticleTagsService;
 import com.example.weijiahome.service.IArticlesService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.example.weijiahome.service.ICategoriesService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,8 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
     private IArticleCategoriesService articleCategoriesService;
     @Autowired
     private IArticleTagsService articleTagsService;
+    @Autowired
+    private ICategoriesService categoriesService;
     /**
      * 根据条件查询文章
      * @param articlesDTO
@@ -64,16 +67,26 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
             //拿到文章id
             Integer id = article.getId();
             //通过文章id 查找 文章-分类表 文章-标签表
-            Categories categorie = articleCategoriesService.getCategorie(id);
+            Integer categorieId = articleCategoriesService.getCategorie(id);
+
             List<Tags> tags = articleTagsService.getTags(id);
+            Categories categorie = null;
             article.setTags(tags);
+            //判断分类id是否为空
+            if (categorieId != null){
+                categorie = categoriesService.getById(categorieId);
+
+                if (categorie ==null){
+                    System.out.println("分类Id："+categorieId+"不存在");
+                }
+            }
             article.setCategory(categorie);
         }
-        
+
         // 计算总记录数
         Integer total = articlesMapper.totalCount();
         Integer pages = (total + pageSize - 1) / pageSize;
-        
+
         // 创建分页信息对象
         PaginationVO paginationVO = new PaginationVO();
         paginationVO.setTotal(total);

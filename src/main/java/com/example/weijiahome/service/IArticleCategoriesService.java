@@ -19,5 +19,5 @@ public interface IArticleCategoriesService extends IService<ArticleCategories> {
 
     IPage<Integer> GetCategoriesList(Integer id, Integer page, Integer pageSize);
 
-    Categories getCategorie(Integer id);
+    Integer getCategorie(Integer id);
 }
