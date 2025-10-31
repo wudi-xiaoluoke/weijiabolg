@@ -20,8 +20,9 @@
           <router-link to="/tags" class="nav-link">标签</router-link>
         </div>
         
-        <!-- 用户操作区 -->
+        <!-- 音乐播放器和用户操作区 -->
         <div class="user-actions" v-if="authStore.isAuthenticated">
+          <MusicPlayer />
           <router-link to="/article/edit" class="btn btn-primary">写文章</router-link>
           
           <!-- 管理按钮和用户菜单组合 -->
@@ -46,6 +47,7 @@
           </div>
         </div>
         <div class="auth-links" v-else>
+          <MusicPlayer />
           <router-link to="/login" class="btn">登录</router-link>
           <router-link to="/register" class="btn btn-primary">注册</router-link>
         </div>
@@ -78,6 +80,7 @@
 import { onMounted, onBeforeUnmount, provide, ref } from 'vue'
 import { useAuthStore } from './store/modules/auth'
 import ThemeSwitcher from './components/ThemeSwitcher.vue'
+import MusicPlayer from './components/MusicPlayer.vue'
 
 const authStore = useAuthStore()
 const showUserMenu = ref(false)
@@ -233,11 +236,12 @@ provide('toggleTheme', toggleTheme)
 .user-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .auth-links {
   display: flex;
+  align-items: center;
   gap: 16px;
 }
 
