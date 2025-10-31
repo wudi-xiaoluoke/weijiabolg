@@ -45,6 +45,16 @@ public class SecurityConfig {
                         .requestMatchers(new AntPathRequestMatcher("/music/**")).permitAll() // 放行/music目录下所有文件
                         .requestMatchers(new AntPathRequestMatcher("/static/**")).permitAll() // 若静态资源在/static目录，也放行
                         .requestMatchers(new AntPathRequestMatcher("/**/*.mp3")).permitAll() // 也可按文件后缀放行
+                        // 新增：放行 Knife4j 新版所有资源（关键！）
+                        .requestMatchers(
+                                new AntPathRequestMatcher("/doc.html"),
+                                new AntPathRequestMatcher("/webjars/**"),
+                                new AntPathRequestMatcher("/v3/api-docs/**"),
+                                new AntPathRequestMatcher("/swagger-resources/**"),
+                                new AntPathRequestMatcher("/swagger-ui/**"), // 兼容新版资源
+                                new AntPathRequestMatcher("/favicon.ico"), // 解决图标403
+                                new AntPathRequestMatcher("/v3/api-docs/swagger-config")
+                        ).permitAll()
                         // ==============================================
                         // 1. 公开接口（游客可访问）
                         // ==============================================

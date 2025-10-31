@@ -33,3 +33,11 @@ aliyun:
     domain: https://${ALIYUN_OSS_BUCKET}.oss-cn-beijing.aliyuncs.com
     avatar-prefix: user-avatars/
     file-prefix: common-files//
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher  # 兼容 Knife4j 依赖的 Springfox
+springdoc:
+  api-docs:
+    path: /v3/api-docs  # 必须是这个路径，不能改
+  packages-to-scan:
+    - com.example.weijiahome.controller  # 确保是你Controller的真实包路径
