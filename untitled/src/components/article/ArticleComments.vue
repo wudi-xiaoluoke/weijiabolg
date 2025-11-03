@@ -93,19 +93,37 @@ const currentPage = ref(1)
 const pageSize = 10
 
 // 计算属性
-const isLoggedIn = computed(() => authStore.isAuthenticated)
-const currentUserId = computed(() => authStore.user?.id || '')
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const user = computed(() => authStore.user)
 const comments = computed(() => commentStore.getCommentsByArticle(props.articleId))
-const totalComments = computed(() => commentStore.getTotalCountByArticle(props.articleId))
-const isLoading = computed(() => commentStore.loading)
-const error = computed(() => commentStore.error)
+const totalComments = computed(() => commentStore.totalComments)
+const isLoading = computed(() => commentStore.commentsLoading)
+const error = computed(() => commentStore.commentsError)
 
 // 获取评论列表
 const fetchComments = async (page = 1) => {
   try {
-    await commentStore.fetchComments(props.articleId, page, pageSize)
+    await commentStore.fetchArticleComments(props.articleId, page, pageSize)
   } catch (err) {
     console.error('获取评论失败:', err)
+  }
+}
+
+// 加载更多评论
+const loadMoreComments = async () => {
+  try {
+    await commentStore.loadMoreComments(props.articleId)
+  } catch (err) {
+    console.error('加载更多评论失败:', err)
+  }
+}
+
+// 刷新评论
+const refreshComments = async () => {
+  try {
+    await commentStore.fetchArticleComments(props.articleId, 1, pageSize)
+  } catch (err) {
+    console.error('刷新评论失败:', err)
   }
 }
 
@@ -116,28 +134,33 @@ const handleSubmitComment = async () => {
     return
   }
   
-  if (!isLoggedIn.value) {
+  if (!isAuthenticated.value) {
     toLogin()
     return
   }
   
   isSubmitting.value = true
   try {
-    const newComment = await commentStore.createComment(props.articleId, commentContent.value.trim())
+    // 使用commentStore提交评论
+    await commentStore.submitComment({
+      articleId: props.articleId,
+      content: commentContent.value.trim()
+    })
+    
     // 清空输入框
     commentContent.value = ''
-    // 重置到第一页，显示最新评论
-    currentPage.value = 1
-    // 重新获取评论列表
+    
+    // 重新获取评论列表以显示最新评论
     await fetchComments(1)
+    
     ElMessage.success('评论发表成功')
     
     // 触发评论添加事件，通知父组件更新评论数
-    emit('comment-added', newComment)
+    emit('comment-added')
     
     // 滚动到评论区域顶部
     nextTick(() => {
-      const commentSection = document.querySelector('.comment-list')
+      const commentSection = document.querySelector('.comments-list')
       if (commentSection) {
         commentSection.scrollIntoView({ behavior: 'smooth' })
       }
@@ -150,93 +173,69 @@ const handleSubmitComment = async () => {
   }
 }
 
-// 处理评论回复
-const handleReply = async (commentId, content, isLoginRequired = false) => {
-  if (isLoginRequired) {
-    toLogin()
-    return
-  }
-  
+// 处理评论点赞
+const handleCommentLike = async (commentId) => {
   try {
-    await commentStore.replyToComment(commentId, content)
-    // 重新获取评论列表以更新回复
-    await fetchComments(currentPage.value)
-    ElMessage.success('回复成功')
+    // 根据后端API，直接调用likeComment方法处理点赞
+    await commentStore.likeComment(commentId)
   } catch (error) {
-    console.error('回复评论失败:', error)
-    ElMessage.error('回复失败，请稍后重试')
-  }
-}
-
-// 点赞评论
-const handleCommentLike = async (commentId, isLiked, isLoginRequired = false) => {
-  if (isLoginRequired || !isLoggedIn.value) {
-    toLogin()
-    return
-  }
-  
-  try {
-    await commentStore.toggleCommentLike(commentId)
-  } catch (error) {
-    console.error('评论点赞失败:', error)
+    console.error('点赞操作失败:', error)
     ElMessage.error('操作失败，请稍后重试')
   }
 }
 
 // 处理评论删除
 const handleCommentDelete = async (commentId) => {
-  if (!confirm('确定要删除这条评论吗？')) return
-  
   try {
-    await commentStore.deleteComment(commentId)
-    // 重新获取评论列表
-    await fetchComments(currentPage.value)
+    await commentStore.deleteComment(commentId, props.articleId)
     ElMessage.success('评论删除成功')
-    
-    // 触发评论删除事件，通知父组件更新评论数
     emit('comment-deleted', commentId)
   } catch (error) {
     console.error('删除评论失败:', error)
-    ElMessage.error('删除失败，请重试')
+    ElMessage.error('删除评论失败，请稍后重试')
   }
 }
 
-// 加载更多评论
-const loadMoreComments = async () => {
-  currentPage.value++
-  await fetchComments(currentPage.value)
-}
-
-// 刷新评论
-const refreshComments = async () => {
-  currentPage.value = 1
-  await fetchComments(1)
-}
-
-// 跳转到登录页
-const toLogin = () => {
-  const currentPath = encodeURIComponent(window.location.pathname)
-  router.push(`/login?redirect=${currentPath}`)
-}
-
-// 切换页码
-const handlePageChange = async (page) => {
-  currentPage.value = page
-  await fetchComments(page)
-  
-  // 滚动到评论区域
-  nextTick(() => {
-    const commentSection = document.querySelector('.comment-list')
-    if (commentSection) {
-      commentSection.scrollIntoView({ behavior: 'smooth' })
+// 处理回复
+const handleReply = async (commentId, content) => {
+  if (!content || !content.trim()) {
+    // 如果没有内容，可能是触发了登录提示
+    if (!isAuthenticated.value) {
+      toLogin()
     }
-  })
+    return
+  }
+  
+  try {
+    // 使用commentStore提交回复
+    await commentStore.submitComment({
+      articleId: props.articleId,
+      content: content.trim(),
+      parentId: commentId
+    })
+    
+    ElMessage.success('回复成功')
+    
+    // 重新获取评论以显示最新回复
+    await fetchComments(1)
+    
+    // 触发回复事件
+    emit('reply', commentId, content)
+  } catch (error) {
+    console.error('回复失败:', error)
+    ElMessage.error('回复失败，请稍后重试')
+  }
+}
+
+// 跳转到登录页面
+const toLogin = () => {
+  router.push('/login')
 }
 
 // 监听文章ID变化，重新获取评论
-watch(() => props.articleId, (newId) => {
-  if (newId) {
-    currentPage.value = 1
+watch(() => props.articleId, (newArticleId) => {
+  if (newArticleId) {
+    console.log('文章ID变化，加载评论:', newArticleId)
     fetchComments(1)
   }
 }, { immediate: true })

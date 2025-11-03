@@ -1,216 +1,151 @@
 import { defineStore } from 'pinia'
-import * as commentAPI from '../../api/modules/comment'
+import { ElMessage } from 'element-plus'
+// 导入评论API（与comment.js的导出名称完全匹配）
+import {
+  getArticleComments,
+  createComment,
+  likeComment,
+  deleteComment
+} from '@/api/modules/comment'
 
 export const useCommentStore = defineStore('comment', {
   state: () => ({
-    comments: [],
-    currentArticleComments: [],
-    commentsLoading: false,
-    commentsError: null,
-    commentSubmitting: false,
-    commentSubmittingError: null,
-    currentPage: 1,
-    totalPages: 1,
-    totalComments: 0,
-    pageSize: 10,
-    commentLikes: new Map(), // 存储评论点赞状态
-    userComments: [],
-    userCommentsLoading: false
+    currentArticleComments: [], // 当前文章的评论列表（含回复）
+    totalComments: 0, // 评论总数
+    loading: false, // 加载状态
+    likeLoading: new Map() // 点赞加载状态（避免重复点击）
   }),
-
-  getters: {
-    getCommentsByArticle: (state) => (articleId) => {
-      return state.currentArticleComments.filter(comment => comment.articleId === articleId)
-    },
-    
-    isCommentLiked: (state) => (commentId) => {
-      return state.commentLikes.get(commentId) || false
-    },
-    
-    hasMoreComments: (state) => {
-      return state.currentPage < state.totalPages
-    }
-  },
-
   actions: {
-    // 获取文章评论
+    /**
+     * 获取文章评论列表
+     * @param articleId 文章ID
+     * @param page 页码
+     * @param pageSize 每页条数
+     */
     async fetchArticleComments(articleId, page = 1, pageSize = 10) {
-      this.commentsLoading = true
-      this.commentsError = null
+      this.loading = true
       try {
-        const response = await commentAPI.getArticleComments(articleId, {
-          page,
-          pageSize,
-          sortBy: 'createdAt',
-          order: 'desc'
-        })
-        this.currentArticleComments = response.data.comments
-        this.currentPage = response.data.currentPage
-        this.totalPages = response.data.totalPages
-        this.totalComments = response.data.totalComments
-        this.pageSize = pageSize
-        
-        // 更新点赞状态
-        response.data.comments.forEach(comment => {
-          this.commentLikes.set(comment.id, comment.isLiked || false)
-        })
+        // 后端返回格式：{ code: 200, data: { commentsLikeVOs: [], total: 2 } }
+        const res = await getArticleComments(articleId, page, pageSize)
+
+        // 兼容后端两种返回格式（带data层/不带data层）
+        const commentData = res.data || res
+        const commentsList = commentData.commentsLikeVOs || []
+
+        // 格式化评论数据：统一前后端字段
+        this.currentArticleComments = commentsList.map(comment => ({
+          id: comment.id,
+          articleId: comment.articleId,
+          content: comment.content || '',
+          likeCount: comment.likeCount || 0,
+          isLiked: comment.isLiked || false,
+          createTime: comment.createTime || new Date().toISOString(),
+          parentId: comment.parentId || null,
+          author: {
+            id: comment.userId,
+            username: comment.userName || '匿名用户',
+            avatar: comment.userAvatar || '/default-avatar.svg'
+          },
+          replies: comment.replies || [] // 回复列表
+        }))
+
+        // 设置评论总数
+        this.totalComments = commentData.total || commentsList.length
       } catch (error) {
-        this.commentsError = error.message || '获取评论失败'
         console.error('获取评论失败:', error)
+        ElMessage.error('获取评论失败，请稍后重试')
+        this.currentArticleComments = []
+        this.totalComments = 0
       } finally {
-        this.commentsLoading = false
+        this.loading = false
       }
     },
 
-    // 加载更多评论
-    async loadMoreComments(articleId) {
-      if (!this.hasMoreComments || this.commentsLoading) return
-      
-      this.commentsLoading = true
-      try {
-        const response = await commentAPI.getArticleComments(articleId, {
-          page: this.currentPage + 1,
-          pageSize: this.pageSize,
-          sortBy: 'createdAt',
-          order: 'desc'
-        })
-        this.currentArticleComments.push(...response.data.comments)
-        this.currentPage = response.data.currentPage
-        
-        // 更新点赞状态
-        response.data.comments.forEach(comment => {
-          this.commentLikes.set(comment.id, comment.isLiked || false)
-        })
-      } catch (error) {
-        this.commentsError = error.message || '加载更多评论失败'
-        console.error('加载更多评论失败:', error)
-      } finally {
-        this.commentsLoading = false
-      }
-    },
-
-    // 提交评论
+    /**
+     * 发布评论/回复
+     * @param data 评论数据
+     */
     async submitComment(data) {
-      this.commentSubmitting = true
-      this.commentSubmittingError = null
       try {
-        const response = await commentAPI.createComment(data)
-        // 添加到评论列表开头
-        this.currentArticleComments.unshift(response.data.comment)
-        this.totalComments++
-        return response.data.comment
+        const res = await createComment(data)
+        ElMessage.success('发表成功')
+        return res.data || res // 返回新创建的评论数据
       } catch (error) {
-        this.commentSubmittingError = error.message || '提交评论失败'
-        console.error('提交评论失败:', error)
-        throw error
-      } finally {
-        this.commentSubmitting = false
+        console.error('发表评论失败:', error)
+        ElMessage.error('发表失败，请稍后重试')
+        throw error // 抛出错误，让组件处理
       }
     },
 
-    // 回复评论
-    async replyToComment(data) {
-      this.commentSubmitting = true
-      this.commentSubmittingError = null
+    /**
+     * 点赞评论
+     * @param commentId 评论ID
+     */
+    async likeComment(commentId) {
+      if (this.likeLoading.get(commentId)) return // 防止重复点击
+      this.likeLoading.set(commentId, true)
+
       try {
-        const response = await commentAPI.replyToComment(data)
-        // 找到父评论并添加回复
-        const parentComment = this.currentArticleComments.find(
-          comment => comment.id === data.parentCommentId
-        )
-        if (parentComment) {
-          if (!parentComment.replies) {
-            parentComment.replies = []
+        const res = await likeComment(commentId)
+        const newLikeCount = res.data?.likes
+
+        // 更新本地评论的点赞状态和数量
+        const updateLikeStatus = (comments) => {
+          for (const comment of comments) {
+            if (comment.id === commentId) {
+              comment.isLiked = true
+              comment.likeCount = newLikeCount || comment.likeCount + 1
+              return true
+            }
+            // 递归更新回复的点赞状态
+            if (comment.replies && updateLikeStatus(comment.replies)) {
+              return true
+            }
           }
-          parentComment.replies.push(response.data.reply)
+          return false
         }
-        this.totalComments++
-        return response.data.reply
+
+        updateLikeStatus(this.currentArticleComments)
+        ElMessage.success('点赞成功')
+        return true
       } catch (error) {
-        this.commentSubmittingError = error.message || '回复评论失败'
-        console.error('回复评论失败:', error)
-        throw error
+        console.error('点赞失败:', error)
+        ElMessage.error('点赞失败，请稍后重试')
+        return false
       } finally {
-        this.commentSubmitting = false
+        this.likeLoading.set(commentId, false)
       }
     },
 
-    // 删除评论
-    async deleteComment(commentId, articleId) {
+    /**
+     * 删除评论
+     * @param commentId 评论ID
+     */
+    async deleteComment(commentId) {
       try {
-        await commentAPI.deleteComment(commentId)
-        // 从评论列表中移除
-        this.currentArticleComments = this.currentArticleComments.filter(
-          comment => comment.id !== commentId
-        )
-        this.totalComments--
+        await deleteComment(commentId)
+
+        // 从本地列表中移除评论（含回复）
+        const removeComment = (comments) => {
+          return comments.filter(comment => {
+            if (comment.id === commentId) return false
+            // 递归删除回复中的评论
+            if (comment.replies) {
+              comment.replies = removeComment(comment.replies)
+            }
+            return true
+          })
+        }
+
+        this.currentArticleComments = removeComment(this.currentArticleComments)
+        this.totalComments = Math.max(0, this.totalComments - 1)
+        ElMessage.success('删除成功')
+        return true
       } catch (error) {
         console.error('删除评论失败:', error)
-        throw error
+        ElMessage.error('删除失败，请稍后重试')
+        return false
       }
-    },
-
-    // 点赞评论
-    async likeComment(commentId) {
-      try {
-        await commentAPI.likeComment(commentId)
-        this.commentLikes.set(commentId, true)
-        // 更新评论的点赞数
-        const comment = this.currentArticleComments.find(c => c.id === commentId)
-        if (comment) {
-          comment.likeCount = (comment.likeCount || 0) + 1
-        }
-      } catch (error) {
-        console.error('点赞评论失败:', error)
-        throw error
-      }
-    },
-
-    // 取消点赞评论
-    async unlikeComment(commentId) {
-      try {
-        await commentAPI.unlikeComment(commentId)
-        this.commentLikes.set(commentId, false)
-        // 更新评论的点赞数
-        const comment = this.currentArticleComments.find(c => c.id === commentId)
-        if (comment && comment.likeCount > 0) {
-          comment.likeCount--
-        }
-      } catch (error) {
-        console.error('取消点赞评论失败:', error)
-        throw error
-      }
-    },
-
-    // 获取用户评论
-    async fetchUserComments(userId, page = 1, pageSize = 10) {
-      this.userCommentsLoading = true
-      try {
-        const response = await commentAPI.getUserComments({
-          userId,
-          page,
-          pageSize
-        })
-        this.userComments = response.data.comments
-      } catch (error) {
-        console.error('获取用户评论失败:', error)
-      } finally {
-        this.userCommentsLoading = false
-      }
-    },
-
-    // 清空当前文章的评论
-    clearCurrentComments() {
-      this.currentArticleComments = []
-      this.currentPage = 1
-      this.totalPages = 1
-      this.totalComments = 0
-    },
-
-    // 清除错误
-    clearErrors() {
-      this.commentsError = null
-      this.commentSubmittingError = null
     }
   }
 })

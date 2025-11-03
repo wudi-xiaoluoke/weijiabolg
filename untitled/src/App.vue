@@ -87,6 +87,17 @@ const showUserMenu = ref(false)
 const navbar = ref(null)
 
 // 应用启动时检查登录状态
+// 监听滚动事件，更新导航栏样式
+const handleScroll = () => {
+  if (navbar.value) {
+    if (window.scrollY > 50) {
+      navbar.value.classList.add('scrolled')
+    } else {
+      navbar.value.classList.remove('scrolled')
+    }
+  }
+}
+
 onMounted(async () => {
   await authStore.checkLoginStatus()
   
@@ -98,23 +109,12 @@ onMounted(async () => {
     }
   })
   
-  // 监听滚动事件，更新导航栏样式
-  const handleScroll = () => {
-    if (navbar.value) {
-      if (window.scrollY > 50) {
-        navbar.value.classList.add('scrolled')
-      } else {
-        navbar.value.classList.remove('scrolled')
-      }
-    }
-  }
-  
   window.addEventListener('scroll', handleScroll)
-  
-  // 组件卸载时移除事件监听器
-  onBeforeUnmount(() => {
-    window.removeEventListener('scroll', handleScroll)
-  })
+})
+
+// 组件卸载时移除事件监听器
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 
 // 处理退出登录

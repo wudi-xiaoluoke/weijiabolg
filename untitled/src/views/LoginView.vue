@@ -85,7 +85,12 @@ const handleLogin = async () => {
     const redirect = route.query.redirect || '/'
     
     // 跳转到指定页面或首页
-    router.push(redirect)
+    // 如果是跳转到首页，使用window.location.href实现刷新
+    if (redirect === '/') {
+      window.location.href = '/'
+    } else {
+      router.push(redirect)
+    }
   } catch (error) {
     // 错误已经在store中处理
   }

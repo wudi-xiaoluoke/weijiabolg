@@ -14,6 +14,7 @@ import com.example.weijiahome.service.ICommentLikesService;
 import com.example.weijiahome.service.ICommentsService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.weijiahome.service.IUsersService;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -69,15 +70,10 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
             QW.eq("user_id",userId);
             CommentLikes one = commentLikesService.getOne(QW);
             //拼装对象
-            commentsLikeVO.setId(comment.getId());
-            commentsLikeVO.setArticleId(comment.getArticleId());
-            commentsLikeVO.setUserId(comment.getUserId());
+            BeanUtils.copyProperties(comment,commentsLikeVO);
+
             commentsLikeVO.setUserName(username);
             commentsLikeVO.setUserAvatar(avatar);
-            commentsLikeVO.setContent(comment.getContent());
-            commentsLikeVO.setParentId(comment.getParentId());
-            commentsLikeVO.setCreatedAt(comment.getCreateTime());
-            commentsLikeVO.setLikes(comment.getLikeCount());
             if (one == null){
                 //如果该用户没赞过搜索应为空 则设置为false
                 commentsLikeVO.setIsLiked(false);
@@ -111,9 +107,19 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
      */
     @Override
     public SaveCommentVO insert(Comments comment) {
-        SaveCommentVO SC =new SaveCommentVO();
+        // 设置创建时间和默认点赞数
+        comment.setCreateTime(LocalDateTime.now());
+        if (comment.getLikeCount() == null) {
+            comment.setLikeCount(0);
+        }
+        comment.setIsdelete(0); // 设置未删除标记
+        
+        // 执行保存操作到数据库
+        commentsMapper.insert(comment);
+        
+        SaveCommentVO SC = new SaveCommentVO();
         Integer articleId = comment.getArticleId();
-        Integer id = comment.getId();
+        Integer id = comment.getId(); // 保存后会自动生成id
         String content = comment.getContent();
         Integer parentId = comment.getParentId();
         Integer likes = comment.getLikeCount();
@@ -131,7 +137,7 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
         SC.setUserAvatar(avatar);
         SC.setContent(content);
         SC.setParentId(parentId);
-        SC.setCreateTime(LocalDateTime.now());
+        SC.setCreateTime(comment.getCreateTime());
         SC.setLikes(likes);
         SC.setIsliked(false);
         //返回对象

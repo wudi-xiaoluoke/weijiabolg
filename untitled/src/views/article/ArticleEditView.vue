@@ -137,7 +137,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { articleAPI } from '../../api/index.js'
+import { articleAPI, categoryAPI } from '../../api/index.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -180,14 +180,24 @@ const rules = {
 }
 
 // 分类列表
-const categories = ref([
-  { label: '前端开发', value: '前端开发' },
-  { label: '后端开发', value: '后端开发' },
-  { label: '数据库', value: '数据库' },
-  { label: 'DevOps', value: 'DevOps' },
-  { label: '算法', value: '算法' },
-  { label: '其他', value: '其他' }
-])
+const categories = ref([])
+
+// 加载分类数据
+const loadCategories = async () => {
+  try {
+    // 不传递params参数
+    const response = await categoryAPI.getCategories({})
+    // 确保正确处理响应格式
+    const categoriesData = response.data || []
+    categories.value = categoriesData.map(cat => ({
+      label: cat.name || cat.categoryName || cat.category_name || '未命名分类',
+      value: (cat.id || cat.categoryId || cat.category_id).toString()
+    }))
+  } catch (error) {
+    console.error('获取分类列表失败:', error)
+    ElMessage.error('获取分类列表失败')
+  }
+}
 
 // 文件变更处理
 const handleFileChange = (file, fileList) => {
@@ -228,14 +238,18 @@ const getArticleDetail = async () => {
     const response = await articleAPI.getArticleById(articleId);
     console.log('文章详情获取成功:', response);
     
+    // 从response.data中获取实际数据（根据API返回格式）
+    const articleData = response.data || response;
+    
     // 根据后端返回的数据结构填充表单
-    articleForm.title = response.title || '';
-    articleForm.category = response.category?.name || response.category || '';
-    articleForm.tags = response.tags ? (Array.isArray(response.tags) ? response.tags.join(',') : response.tags) : '';
-    articleForm.coverImage = response.coverImage || response.cover_url || '';
-    articleForm.content = response.content || '';
-    articleForm.summary = response.summary || '';
-    articleForm.status = response.status || 'draft';
+    articleForm.title = articleData.title || '';
+    // 设置分类ID而不是名称
+    articleForm.category = articleData.categoryId ? articleData.categoryId.toString() : '';
+    articleForm.tags = articleData.tags ? (Array.isArray(articleData.tags) ? articleData.tags.join(',') : articleData.tags) : '';
+    articleForm.coverImage = articleData.coverImage || articleData.cover_url || '';
+    articleForm.content = articleData.content || '';
+    articleForm.summary = articleData.summary || '';
+    articleForm.status = articleData.status === '0' ? 'draft' : 'published'; // 根据状态码转换
     
     // 如果有封面图，设置文件列表
     if (articleForm.coverImage) {
@@ -256,12 +270,12 @@ const handleSubmit = async () => {
       try {
         const formData = {
           title: articleForm.title,
-          category: articleForm.category,
-          tags: articleForm.tags ? articleForm.tags.split(',').map(tag => tag.trim()) : [],
+          categoryId: parseInt(articleForm.category), // 使用categoryId而不是category
+          tagIds: articleForm.tags ? articleForm.tags.split(',').map(tag => tag.trim()) : [],
           coverImage: articleForm.coverImage,
           content: articleForm.content,
           summary: articleForm.summary,
-          status: articleForm.status
+          status: articleForm.status === 'draft' ? 0 : 1 // 确保状态为Integer类型
         };
         
         console.log('提交文章数据:', formData);
@@ -319,9 +333,12 @@ const handleCancel = () => {
 }
 
 // 页面加载时，如果是编辑模式则获取文章详情
-onMounted(() => {
+onMounted(async () => {
+  // 加载分类数据
+  await loadCategories()
+  
   if (isEditMode.value) {
-    getArticleDetail();
+    await getArticleDetail();
   }
 })
 </script>

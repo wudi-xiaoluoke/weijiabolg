@@ -20,6 +20,7 @@ public class ArticleVO {
      * 文章标题
      */
     private String title;
+    private String content; //文章内容
 
     /**
      * 文章摘要

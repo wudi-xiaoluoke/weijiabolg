@@ -9,11 +9,14 @@ import com.example.weijiahome.entity.vo.ArticleVO;
 import com.example.weijiahome.entity.po.Result;
 import com.example.weijiahome.entity.vo.LikedVO;
 import com.example.weijiahome.entity.vo.PageResultVO;
+import com.example.weijiahome.mapper.UsersMapper;
 import com.example.weijiahome.service.IArticleCategoriesService;
 import com.example.weijiahome.service.IArticleTagsService;
 import com.example.weijiahome.service.IArticlesService;
 import com.example.weijiahome.service.ICommentLikesService;
+import com.example.weijiahome.service.ICategoriesService;
 import com.example.weijiahome.utils.JwtUtil;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,6 +44,10 @@ public class ArticlesController {
     @Autowired
     private IArticleTagsService articleTagsService;
     @Autowired
+    private ICategoriesService categoriesService;
+    @Autowired
+    private UsersMapper usersMapper;
+    @Autowired
     private JwtUtil jwtUtil;
 
     /**
@@ -55,12 +62,34 @@ public class ArticlesController {
     }
     //获取文章详情
     @GetMapping("/{id}")
-    public Result<Articles> getArticleById(@PathVariable Integer id) {
+    public Result<ArticleVO> getArticleById(@PathVariable Integer id) {
         Articles article = articlesService.getById(id);
         if (article == null) {
             return Result.error(404,"文章不存在"); // 或返回 404 状态码
         }
-        return Result.ok(article);
+        
+        // 转换为VO对象
+        ArticleVO articleVO = new ArticleVO();
+        BeanUtils.copyProperties(article, articleVO);
+        
+        // 设置作者信息
+        if (article.getAuthorId() != null) {
+            Users author = usersMapper.selectById(article.getAuthorId());
+            articleVO.setAuthor(author);
+        }
+        
+        // 设置分类信息
+        Integer categoryId = articleCategoriesService.getCategorie(id);
+        if (categoryId != null) {
+            Categories category = categoriesService.getById(categoryId);
+            articleVO.setCategory(category);
+        }
+        
+        // 设置标签信息
+        List<Tags> tags = articleTagsService.getTags(id);
+        articleVO.setTags(tags);
+        
+        return Result.ok(articleVO);
     }
     // 创建文章
     @PostMapping()
@@ -125,17 +154,15 @@ public class ArticlesController {
     }
     //更新文章
     @PutMapping("/{id}")
-    public  Result<Articles> UPdateArticles(@RequestBody CreatArticlesDTO articlesDTO){
+    public  Result<Articles> updateArticles(@PathVariable("id") Integer id, @RequestBody CreatArticlesDTO articlesDTO){
         ArticleCategories AC =new ArticleCategories();
         //更新文章数据
-        Articles A = new Articles();
-        A.setTitle(articlesDTO.getTitle())
-                .setContent(articlesDTO.getContent());
-        articlesService.saveOrUpdate(A);
+
+        Articles A = articlesService.updateArticles(id, articlesDTO);
 
         //更新文章-分类关系数据
         AC.setCategoryId(articlesDTO.getCategoryId())
-                .setArticleId(A.getId());
+                .setArticleId(id); // 使用传入的文章ID
         articleCategoriesService.saveOrUpdate(AC);
 
         //更新文章-标签关系数据
@@ -143,7 +170,7 @@ public class ArticlesController {
         List<ArticleTags> articleTagsList = new ArrayList<>();
         for (Integer tagId : tagIds) {
             ArticleTags articleTag = new ArticleTags();
-            articleTag.setArticleId(A.getId()) // 使用刚保存的文章ID
+            articleTag.setArticleId(id) // 使用传入的文章ID
                     .setTagId(tagId);
             articleTagsList.add(articleTag);
         }

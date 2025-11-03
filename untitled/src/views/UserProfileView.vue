@@ -14,7 +14,7 @@
             <div class="avatar-section">
               <el-avatar
                 :size="100"
-                :src="userProfile.avatar || defaultAvatar"
+                :src="user.avatar || userProfile.avatar || defaultAvatar"
                 class="user-avatar"
               >
                 {{ userInitial }}
@@ -258,13 +258,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { UploadFilled, Key, Monitor, Timer } from '@element-plus/icons-vue';
-import { useUserStore } from '../stores/userStore';
+import { getToken } from '../utils/auth';
+import { debugLocalStorage } from '../utils/debugAuth';
+import { useAuthStore } from '../store/modules/auth';
 
 // 存储实例
-const userStore = useUserStore();
+const authStore = useAuthStore();
 
 // 响应式数据
 const activeTab = ref('info');
@@ -276,15 +278,24 @@ const showLoginHistoryDialog = ref(false);
 const fileInput = ref(null);
 const defaultAvatar = 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png';
 
-// 用户个人信息
-const userProfile = reactive({
+// 计算属性：直接从authStore获取用户信息
+const user = computed(() => {
+  const userData = authStore.user || {};
+  console.log('computed user:', userData);
+  return userData;
+});
+
+// 用户个人信息（使用临时对象存储修改，不直接修改store状态）
+const userProfile = ref({
   username: '',
   realName: '',
   email: '',
   phone: '',
   bio: '',
   avatar: '',
-  region: []
+  region: [],
+  website: '',
+  location: ''
 });
 
 // 安全设置
@@ -383,21 +394,40 @@ const loginHistory = ref([
 
 // 计算属性
 const userInitial = computed(() => {
-  if (userProfile.realName) {
-    return userProfile.realName.charAt(0);
-  }
-  if (userProfile.username) {
-    return userProfile.username.charAt(0);
-  }
-  return 'U';
+  const name = user.value.realName || user.value.username || userProfile.value.realName || userProfile.value.username || 'U';
+  return name.charAt(0);
 });
 
 // 生命周期钩子
 onMounted(async () => {
+  // 先等待authStore初始化
+  if (!authStore.isInitialized) {
+    await authStore.initializeAuth();
+    console.log('authStore初始化完成');
+  }
+  
   // 加载用户信息
   await loadUserProfile();
+  
+  // 添加一个小延迟后再次尝试加载，确保数据完全更新
+  setTimeout(async () => {
+    console.log('延迟后再次检查用户信息');
+    if (!userProfile.value.username || userProfile.value.username === '未知用户') {
+      console.log('用户信息不完整，再次尝试加载');
+      await loadUserProfile();
+    }
+  }, 500);
+  
   // 加载安全设置
   await loadSecuritySettings();
+  
+  // 打印当前认证状态
+  console.log('页面加载完成，当前认证状态:', {
+    isAuthenticated: authStore.isAuthenticated,
+    user: authStore.user,
+    userProfile: userProfile.value
+  });
+  
   // 加载偏好设置
   await loadPreferences();
 });
@@ -405,17 +435,57 @@ onMounted(async () => {
 // 方法
 const loadUserProfile = async () => {
   try {
-    const userInfo = await userStore.getUserInfo();
-    // 这里应该是从API获取用户信息，现在使用模拟数据
-    Object.assign(userProfile, {
-      username: 'admin',
-      realName: '管理员',
-      email: 'admin@example.com',
-      phone: '13800138000',
-      bio: '这是一个示例用户简介',
-      avatar: '',
-      region: ['beijing', 'haidian']
+    console.log('开始加载用户信息...');
+    
+    // 调用调试函数检查localStorage
+    debugLocalStorage();
+    
+    // 检查认证状态
+    console.log('认证状态检查:', {
+      isAuthenticated: authStore.isAuthenticated,
+      hasToken: !!getToken(),
+      userExists: !!authStore.user
     });
+    
+    // 调用fetchUserProfile方法从API获取用户信息并更新authStore
+    const userData = await authStore.fetchUserProfile();
+    console.log('fetchUserProfile返回值:', userData);
+    console.log('fetchUserProfile完成后，authStore中的user对象:', authStore.user);
+    
+    // 将store中的用户信息同步到本地编辑状态
+    const currentUser = authStore.user || userData;
+    if (currentUser) {
+      console.log('获取到用户信息，准备更新页面:', currentUser);
+      
+      // 使用重新赋值的方式确保响应式更新被正确触发
+      userProfile.value = {
+        username: currentUser.username || '未知用户',
+        realName: currentUser.nickname || currentUser.realName || currentUser.username || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        bio: currentUser.bio || '这是一个默认的个人简介',
+        avatar: currentUser.avatar || '',
+        region: currentUser.region || [],
+        website: currentUser.website || '',
+        location: currentUser.location || ''
+      };
+      
+      console.log('更新后的userProfile:', userProfile.value);
+    } else {
+      console.log('未获取到用户信息');
+      // 即使没有获取到用户信息，也设置一些默认值
+      userProfile.value = {
+        username: '未知用户',
+        realName: '未知用户',
+        email: '',
+        phone: '',
+        bio: '这是一个默认的个人简介',
+        avatar: '',
+        region: [],
+        website: '',
+        location: ''
+      };
+    }
   } catch (error) {
     console.error('加载用户信息失败:', error);
     ElMessage.error('加载用户信息失败');
@@ -424,29 +494,23 @@ const loadUserProfile = async () => {
 
 const loadSecuritySettings = async () => {
   try {
-    // 这里应该是从API获取安全设置，现在使用默认值
-    Object.assign(securitySettings, {
-      twoFactorEnabled: false,
-      loginNotifications: true
-    });
+    // 暂时使用模拟数据
+    console.log('加载安全设置（使用模拟数据）');
+    // 这里可以添加实际的API调用
   } catch (error) {
     console.error('加载安全设置失败:', error);
+    ElMessage.error('获取安全设置失败，请稍后重试');
   }
 };
 
 const loadPreferences = async () => {
   try {
-    // 这里应该是从API获取偏好设置，现在使用默认值
-    Object.assign(preferences, {
-      language: 'zh-CN',
-      defaultView: 'list',
-      fileSort: 'name',
-      sortDescending: false,
-      autoSave: true,
-      showHiddenFiles: false
-    });
+    // 暂时使用模拟数据
+    console.log('加载偏好设置（使用模拟数据）');
+    // 这里可以添加实际的API调用
   } catch (error) {
     console.error('加载偏好设置失败:', error);
+    ElMessage.error('获取偏好设置失败，请稍后重试');
   }
 };
 
@@ -506,7 +570,7 @@ const handleAvatarUpload = async (event) => {
     // 现在我们使用FileReader来预览图片
     const reader = new FileReader();
     reader.onload = (e) => {
-      userProfile.avatar = e.target.result;
+      userProfile.value.avatar = e.target.result;
     };
     reader.readAsDataURL(file);
     

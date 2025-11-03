@@ -9,7 +9,7 @@
         SELECT *
         from blog.comments
         <where>
-            <if test="article_id != null">and article_id =#{articleId}</if>
+            <if test="articleId != null">and article_id =#{articleId}</if>
         </where>
         limit #{pageNum},#{pageSize}
     </select>

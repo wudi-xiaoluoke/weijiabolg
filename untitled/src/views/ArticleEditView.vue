@@ -120,12 +120,40 @@
         
         <!-- 标签 -->
         <el-form-item label="标签" prop="tags">
-          <el-tag-input
-            v-model="articleForm.tags"
-            :maxinput="10"
-            placeholder="请输入标签，回车添加"
-            :disabled="saving || publishing"
-          />
+          <div class="custom-tags-container">
+            <!-- 显示已添加的标签 -->
+            <div 
+              v-for="(tag, index) in processedTags" 
+              :key="index" 
+              class="custom-tag"
+              :class="{ 'tag-disabled': saving || publishing }"
+            >
+              {{ tag }}
+              <span 
+                v-if="!saving && !publishing"
+                class="tag-remove" 
+                @click="removeTag(index)"
+              >×</span>
+            </div>
+            
+            <!-- 添加新标签的输入框 -->
+            <div 
+              v-if="processedTags.length < 10 && !saving && !publishing"
+              class="tag-input-wrapper"
+            >
+              <input
+                v-model="tagInput"
+                type="text"
+                class="tag-input"
+                placeholder="添加标签"
+                @keyup.enter="addTag"
+                @keyup.space.prevent="addTag"
+                @blur="addTag"
+                maxlength="10"
+              />
+              <span class="add-icon" @click="addTag">+</span>
+            </div>
+          </div>
           <div class="tip-text">最多添加10个标签，每个标签不超过10个字符</div>
         </el-form-item>
         
@@ -382,6 +410,29 @@ const articleForm = reactive({
   scheduledTime: ''
 })
 
+const tagInput = ref('')
+
+// 处理后的标签数组，只包含字符串形式的标签名
+const processedTags = computed(() => {
+  return articleForm.tags.map(tag => {
+    if (typeof tag === 'object' && tag !== null) {
+      // 更健壮地处理对象格式的标签
+      if (tag.name) return tag.name;
+      // 如果对象没有name属性，尝试其他常见属性
+      if (tag.title) return tag.title;
+      if (tag.value) return tag.value;
+      // 最后才转换为字符串
+      try {
+        return JSON.stringify(tag).replace(/[{}]/g, '').replace(/"/g, '');
+      } catch (e) {
+        return '标签';
+      }
+    }
+    // 确保非对象值也被转换为字符串
+    return String(tag).trim();
+  }).filter(tag => tag); // 过滤空标签
+})
+
 const fileList = ref([])
 const editorMode = ref('markdown') // 'markdown' 或 'rich'
 const categoryValue = ref([])
@@ -528,7 +579,29 @@ const loadArticleData = async () => {
       articleForm.subtitle = article.subtitle || ''
       articleForm.coverImage = article.coverImage || ''
       articleForm.categoryId = article.categoryId
-      articleForm.tags = article.tags ? article.tags.map(tag => tag.name) : []
+      // 确保正确处理标签数据，只提取name属性
+      if (article.tags && Array.isArray(article.tags)) {
+        articleForm.tags = article.tags.map(tag => {
+          // 使用与processedTags计算属性相同的处理逻辑
+          if (typeof tag === 'object' && tag !== null) {
+            // 更健壮地处理对象格式的标签
+            if (tag.name) return tag.name;
+            // 如果对象没有name属性，尝试其他常见属性
+            if (tag.title) return tag.title;
+            if (tag.value) return tag.value;
+            // 最后才转换为字符串
+            try {
+              return JSON.stringify(tag).replace(/[{}]/g, '').replace(/"/g, '');
+            } catch (e) {
+              return '标签';
+            }
+          }
+          // 确保非对象值也被转换为字符串
+          return String(tag).trim();
+        }).filter(tag => tag); // 过滤空标签
+      } else {
+        articleForm.tags = [];
+      }
       articleForm.content = article.content || ''
       articleForm.summary = article.summary || ''
       articleForm.allowComments = article.allowComments !== false
@@ -582,6 +655,20 @@ const handleRemoveCover = () => {
 // 打开分类对话框
 const openCategoryDialog = () => {
   categoryDialogVisible.value = true
+}
+
+// 添加标签
+const addTag = () => {
+  const tagText = tagInput.value.trim();
+  if (tagText && !processedTags.value.includes(tagText) && processedTags.value.length < 10) {
+    articleForm.tags.push(tagText);
+    tagInput.value = '';
+  }
+}
+
+// 移除标签
+const removeTag = (index) => {
+  articleForm.tags.splice(index, 1);
 }
 
 // 添加分类
@@ -953,13 +1040,29 @@ const prepareFormData = () => {
     summary = plainText.substring(0, 200) + (plainText.length > 200 ? '...' : '')
   }
   
+  // 格式化标签数据为后端期望的格式（{id, name}数组）
+  const formattedTags = articleForm.tags.map((tag, index) => {
+    if (typeof tag === 'object' && tag !== null) {
+      return {
+        id: tag.id || `temp-${index}-${Date.now()}`, // 使用临时ID
+        name: tag.name || String(tag)
+      };
+    } else {
+      // 对于字符串标签，创建临时ID
+      return {
+        id: `temp-${index}-${Date.now()}`,
+        name: String(tag)
+      };
+    }
+  })
+
   return {
     id: articleForm.id,
     title: articleForm.title.trim(),
     subtitle: articleForm.subtitle.trim(),
     coverImage: articleForm.coverImage,
     categoryId: categoryId,
-    tags: articleForm.tags,
+    tags: formattedTags,
     content: articleForm.content.trim(),
     summary: summary.trim(),
     allowComments: articleForm.allowComments,
@@ -1059,6 +1162,77 @@ onMounted(async () => {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
+}
+
+/* 自定义标签样式 */
+.custom-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  min-height: 40px;
+}
+
+.custom-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background-color: #f0f2f5;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  position: relative;
+}
+
+.custom-tag.tag-disabled {
+  background-color: #f5f7fa;
+  color: #c0c4cc;
+  border-color: #ebeef5;
+}
+
+.tag-remove {
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #909399;
+  font-weight: bold;
+}
+
+.tag-remove:hover {
+  color: #f56c6c;
+}
+
+.tag-input-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tag-input {
+  padding: 4px 30px 4px 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  width: 120px;
+  background-color: transparent;
+}
+
+.tag-input:focus {
+  border-color: #409eff;
+}
+
+.add-icon {
+  position: absolute;
+  right: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #409eff;
+  font-weight: bold;
+}
+
+.add-icon:hover {
+  color: #66b1ff;
 }
 
 .header-actions {

@@ -115,7 +115,7 @@ const ENDPOINTS = {
 
 // Mock数据配置
 const MOCK_CONFIG = {
-  ENABLED: import.meta.env.VITE_ENABLE_MOCK === 'true' || true, // 默认启用mock
+  ENABLED: import.meta.env.VITE_ENABLE_MOCK === 'true' || false, // 默认禁用mock
   DELAY: 300, // mock响应延迟（毫秒）
   ERROR_RATE: 0 // mock错误率（0-1），用于模拟网络错误
 };

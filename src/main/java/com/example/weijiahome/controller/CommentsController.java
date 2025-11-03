@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
  * @since 2025-10-12
  */
 @RestController
-@RequestMapping("/comments")
+@RequestMapping("/api/comments")
 public class CommentsController {
     @Autowired
     private ICommentsService commentsService;

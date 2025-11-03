@@ -101,7 +101,6 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useCommentStore } from '../../store/modules/comment'
-import { useSocialStore } from '../../store/modules/social'
 
 const props = defineProps({
   comment: {
@@ -112,7 +111,7 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  isLoggedIn: {
+  isAuthenticated: {
     type: Boolean,
     default: false
   }
@@ -122,7 +121,6 @@ const emit = defineEmits(['reply', 'like', 'delete'])
 
 // 使用store
 const commentStore = useCommentStore()
-const socialStore = useSocialStore()
 const router = useRouter()
 
 // 响应式数据
@@ -131,12 +129,12 @@ const replyContent = ref('')
 const submittingReply = ref(false)
 const isLiking = ref(false)
 
-// 计算属性 - 从social store获取评论点赞状态
-const isCommentLiked = computed(() => socialStore.isCommentLiked(props.comment.id))
+// 计算属性 - 从comment store获取评论点赞状态
+const isCommentLiked = computed(() => commentStore.isCommentLiked(props.comment.id))
 
-// 从social store获取评论点赞数
+// 从comment props获取评论点赞数
 const commentLikeCount = computed(() => {
-  return socialStore.getCommentLikeCount(props.comment.id) || props.comment.likeCount || 0
+  return props.comment.likeCount || 0
 })
 
 // 判断是否是评论作者
@@ -181,20 +179,20 @@ const formatCommentTime = (dateString) => {
 
 // 处理点赞
 const handleLike = async () => {
-  if (!props.isLoggedIn) {
+  if (!props.isAuthenticated) {
     // 触发父组件的登录提示
-    emit('like', props.comment.id, isCommentLiked.value, true)
+    emit('like', props.comment.id)
     return
   }
   
   isLiking.value = true
   try {
-    // 使用social store处理评论点赞
-    await socialStore.toggleCommentLike(props.comment.id)
-    emit('like', props.comment.id, !isCommentLiked.value)
+    // 使用comment store处理评论点赞
+    await commentStore.likeComment(props.comment.id)
+    emit('like', props.comment.id)
     
     // 显示点赞成功提示
-    ElMessage.success(isCommentLiked.value ? '取消点赞成功' : '点赞成功')
+    ElMessage.success('点赞成功')
   } catch (error) {
     console.error('点赞失败:', error)
     ElMessage.error('操作失败，请稍后重试')
@@ -205,9 +203,9 @@ const handleLike = async () => {
 
 // 处理回复
 const handleReply = () => {
-  if (!props.isLoggedIn) {
+  if (!props.isAuthenticated) {
     // 触发父组件的登录提示
-    emit('reply', props.comment.id, '', true)
+    emit('reply', props.comment.id)
     return
   }
   
@@ -249,27 +247,27 @@ const submitReply = async () => {
   }
 }
 
-// 判断回复是否已点赞 - 使用social store
+// 判断回复是否已点赞
 const isReplyLiked = (replyId) => {
-  return socialStore.isCommentLiked(replyId)
+  return commentStore.isCommentLiked(replyId)
 }
 
 // 处理回复点赞
 const handleReplyLike = async (reply) => {
-  if (!props.isLoggedIn) {
+  if (!props.isAuthenticated) {
     // 触发父组件的登录提示
-    emit('like', reply.id, isReplyLiked(reply.id), true)
+    emit('like', reply.id)
     return
   }
   
   isLiking.value = true
   try {
-    // 使用social store处理回复点赞
-    await socialStore.toggleCommentLike(reply.id)
-    emit('like', reply.id, !isReplyLiked(reply.id))
+    // 使用comment store处理回复点赞
+    await commentStore.likeComment(reply.id)
+    emit('like', reply.id)
     
     // 显示点赞成功提示
-    ElMessage.success(isReplyLiked(reply.id) ? '取消点赞成功' : '点赞成功')
+    ElMessage.success('点赞成功')
   } catch (error) {
     console.error('点赞失败:', error)
     ElMessage.error('操作失败，请稍后重试')
@@ -280,9 +278,9 @@ const handleReplyLike = async (reply) => {
 
 // 处理回复的回复
 const handleReplyToReply = (reply) => {
-  if (!props.isLoggedIn) {
+  if (!props.isAuthenticated) {
     // 触发父组件的登录提示
-    emit('reply', props.comment.id, '', true)
+    emit('reply', props.comment.id)
     return
   }
   
@@ -308,11 +306,8 @@ const handleDelete = () => {
 // 处理删除回复
 const handleReplyDelete = (replyId) => {
   if (confirm('确定要删除这条回复吗？')) {
-    // 在实际项目中，这里应该调用API删除回复
-    // 这里简化处理，直接从评论的回复列表中移除
-    if (props.comment.replies) {
-      props.comment.replies = props.comment.replies.filter(reply => reply.id !== replyId)
-    }
+    // 使用comment store删除回复
+    emit('delete', replyId)
   }
 }
 

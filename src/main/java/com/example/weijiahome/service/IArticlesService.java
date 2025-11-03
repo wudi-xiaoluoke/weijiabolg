@@ -1,5 +1,6 @@
 package com.example.weijiahome.service;
 
+import com.example.weijiahome.entity.dto.CreatArticlesDTO;
 import com.example.weijiahome.entity.dto.GetArticlesDTO;
 import com.example.weijiahome.entity.po.Articles;
 import com.baomidou.mybatisplus.extension.service.IService;
@@ -25,4 +26,6 @@ public interface IArticlesService extends IService<Articles> {
     Integer PublishStatus(Integer id, boolean published);
 
     Integer LikeCount(Integer id, boolean liked);
+
+    Articles updateArticles(Integer id, CreatArticlesDTO articlesDTO);
 }

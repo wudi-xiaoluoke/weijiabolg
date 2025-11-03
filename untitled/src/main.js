@@ -61,15 +61,19 @@ window.addEventListener('theme-changed', (event) => {
   }
 })
 
-app.mount('#app')
-
-// 初始化认证状态
+// 初始化认证状态并挂载应用
 const initApp = async () => {
   const authStore = useAuthStore()
   try {
+    // 在应用挂载前初始化认证状态
     await authStore.initializeAuth()
+    console.log('认证状态初始化完成，准备挂载应用')
+    // 认证状态初始化完成后再挂载应用
+    app.mount('#app')
   } catch (error) {
     console.error('初始化认证状态失败:', error)
+    // 即使认证初始化失败，也要挂载应用
+    app.mount('#app')
   }
 }
 
