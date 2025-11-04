@@ -1,208 +1,320 @@
 <template>
-  <div class="article-detail-container">
-    <!-- 加载状态 -->
-    <div v-if="articleStore.loadingDetail" class="loading-state">
-      <el-skeleton :rows="10" animated />
-    </div>
+  <div class="article-detail-page">
+    <!-- 顶部进度条 -->
+    <div class="reading-progress" :style="{ width: readingProgress + '%' }"></div>
     
-    <div v-else-if="articleStore.currentArticle" class="article-detail">
-      <!-- 文章头部 -->
-      <div class="article-header">
-        <h1 class="article-title">{{ articleStore.currentArticle.title }}</h1>
-        
-        <div class="article-meta">
-          <div class="author-info">
-            <img 
-              :src="articleStore.currentArticle.author?.avatar || '/default-avatar.svg'" 
-              alt="作者头像"
-              class="author-avatar"
-              loading="lazy"
-            />
-            <div class="author-details">
-              <span class="author-name">{{ articleStore.currentArticle.author?.username || '匿名用户' }}</span>
-              <span class="publish-date">{{ formatDate(articleStore.currentArticle.createdAt) }}</span>
+    <div class="container">
+      <div class="article-detail-layout">
+        <!-- 左侧文章区域 -->
+        <div class="article-main-content">
+          <!-- 返回按钮 -->
+          <button class="back-button" @click="router.back()" aria-label="返回">
+            <el-icon class="back-icon"><ArrowLeft /></el-icon>
+          </button>
+          
+          <!-- 加载状态 -->
+          <div v-if="articleStore.loadingDetail || isLoading" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>正在加载文章...</p>
+          </div>
+
+          <!-- 文章详情 -->
+          <div v-else-if="articleStore.currentArticle" class="article-detail">
+            <!-- 文章头部 -->
+            <header class="article-header">
+              <h1 class="article-title">{{ articleStore.currentArticle.title || '' }}</h1>
+              
+              <!-- 作者信息 -->
+              <div class="author-info">
+                <router-link 
+                  :to="`/user/${articleStore.currentArticle.author?.id}`" 
+                  class="author-avatar-container"
+                >
+                  <img
+                      :src="articleStore.currentArticle.author?.avatar || '/default-avatar.svg'"
+                      alt="作者头像"
+                      class="author-avatar"
+                      loading="lazy"
+                  />
+                </router-link>
+                <div class="author-details">
+                  <router-link 
+                    :to="`/user/${articleStore.currentArticle.author?.id}`" 
+                    class="author-name"
+                    hover-class="hover-link"
+                  >
+                    {{ articleStore.currentArticle.author?.username || '匿名用户' }}
+                  </router-link>
+                  <div class="article-meta-info">
+                    <time class="publish-date" :datetime="articleStore.currentArticle.createdAt">
+                      {{ formatDate(articleStore.currentArticle.createdAt) }}
+                    </time>
+                    <span class="separator"></span>
+                    <span class="reading-time">{{ estimatedReadingTime }} 阅读</span>
+                  </div>
+                </div>
+                
+                <!-- 关注按钮 -->
+                <button 
+                  v-if="authStore.isAuthenticated && !isAuthor"
+                  class="follow-button"
+                  :class="{ 'followed': isFollowing }"
+                  @click="handleFollow"
+                  :disabled="isFollowingLoading"
+                >
+                  {{ isFollowing ? '已关注' : '关注' }}
+                </button>
+              </div>
+              
+              <!-- 文章统计 -->
+              <div class="article-stats">
+                <span class="stat-item">
+                  <el-icon><View /></el-icon>
+                  <span>{{ formatNumber(articleStore.currentArticle.viewCount || 0) }}</span>
+                </span>
+                <span class="stat-item">
+                  <el-icon><ChatDotRound /></el-icon>
+                  <span>{{ formatNumber(articleStore.currentArticle.commentCount || 0) }}</span>
+                </span>
+                <span class="stat-item">
+                  <el-icon><Thumb /></el-icon>
+                  <span>{{ formatNumber(articleStore.currentArticle.likes || articleStore.currentArticle.likeCount || 0) }}</span>
+                </span>
+              </div>
+              
+              <!-- 分类和标签 -->
+              <div class="article-taxonomies">
+                <div class="categories">
+                  <router-link 
+                    v-if="articleStore.currentArticle.category"
+                    :to="`/category/${articleStore.currentArticle.category.id}`"
+                    class="category-badge"
+                  >
+                    {{ articleStore.currentArticle.category.name }}
+                  </router-link>
+                  <span v-else class="no-category">未分类</span>
+                </div>
+                <div class="tags">
+                  <router-link 
+                    v-for="tag in articleStore.currentArticle.tags"
+                    :key="tag.id"
+                    :to="`/tag/${tag.id}`"
+                    class="tag"
+                  >
+                    {{ tag.name }}
+                  </router-link>
+                </div>
+              </div>
+            </header>
+
+            <!-- 文章内容 -->
+            <article class="article-content">
+              <ArticleContent :content="articleStore.currentArticle?.content" />
+            </article>
+
+            <!-- 文章底部信息 -->
+            <div class="article-footer">
+              <div class="update-info">
+                <span>最后更新：{{ formatDate(articleStore.currentArticle.updatedAt) }}</span>
+              </div>
+            </div>
+
+            <!-- 文章操作工具栏 -->
+            <div class="article-actions">
+              <button
+                  class="action-button"
+                  :class="{ 'active': isLiked }"
+                  @click="handleLike"
+                  :disabled="isLiking"
+                >
+                  <el-icon><Thumb /></el-icon>
+                  <span>{{ isLiked ? '已点赞' : '点赞' }}</span>
+                </button>
+                <button
+                  class="action-button"
+                  :class="{ 'active': isFavorited }"
+                  @click="handleFavorite"
+                  :disabled="isFavoriting"
+                >
+                  <el-icon><Star /></el-icon>
+                  <span>{{ isFavorited ? '已收藏' : '收藏' }}</span>
+                </button>
+                <button
+                  class="action-button"
+                  @click="handleShare"
+                >
+                  <el-icon><Share /></el-icon>
+                  <span>分享</span>
+                </button>
+                <button
+                  class="action-button"
+                  @click="handleReport"
+                >
+                  <el-icon><WarningFilled /></el-icon>
+                  <span>举报</span>
+                </button>
+                
+                <!-- 作者操作 -->
+                <div class="author-actions" v-if="isAuthor">
+                  <router-link
+                      :to="`/articles/edit?id=${articleStore.currentArticle.id}`"
+                      class="edit-button"
+                    >
+                      <el-icon><Edit /></el-icon>
+                      <span>编辑</span>
+                    </router-link>
+                  <button
+                    class="delete-button"
+                    @click="handleDelete"
+                    :disabled="articleStore.deleting"
+                  >
+                    <el-icon><Delete /></el-icon>
+                    <span>删除</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 文章导航 -->
+            <div class="article-navigation">
+              <router-link 
+                v-if="prevArticle" 
+                :to="`/article/${prevArticle.id}`" 
+                class="nav-item prev"
+              >
+                <div class="nav-icon"><ArrowLeft /></div>
+                <div class="nav-content">
+                  <div class="nav-label">上一篇</div>
+                  <div class="nav-title">{{ prevArticle.title }}</div>
+                </div>
+              </router-link>
+              
+              <router-link 
+                v-if="nextArticle" 
+                :to="`/article/${nextArticle.id}`" 
+                class="nav-item next"
+              >
+                <div class="nav-content">
+                  <div class="nav-label">下一篇</div>
+                  <div class="nav-title">{{ nextArticle.title }}</div>
+                </div>
+                <div class="nav-icon"><ArrowRight /></div>
+              </router-link>
+            </div>
+
+            <!-- 评论区 -->
+            <div class="comments-section">
+              <h3 class="comments-title">
+                <el-icon><ChatDotRound /></el-icon>
+                <span>评论 ({{ articleStore.currentArticle.commentCount || 0 }})</span>
+              </h3>
+              <ArticleComments
+                :articleId="articleStore.currentArticle.id"
+                :isAuthenticated="authStore.isAuthenticated"
+                :user="authStore.user"
+              />
             </div>
           </div>
-          
-          <div class="article-stats">
-            <span class="stat-item">
-              <i class="el-icon-view"></i> {{ articleStore.currentArticle.viewCount || 0 }}
-            </span>
-            <span class="stat-item">
-              <i class="el-icon-chat-dot-round"></i> {{ articleStore.currentArticle.commentCount || 0 }}
-            </span>
-            <span class="stat-item">
-              <i class="el-icon-thumb"></i> {{ articleStore.currentArticle.likeCount || 0 }}
-            </span>
+
+          <!-- 文章不存在 -->
+          <div v-else class="article-not-found">
+            <div class="not-found-icon">
+              <el-icon><DocumentDelete /></el-icon>
+            </div>
+            <h3>文章不存在或已被删除</h3>
+            <p>抱歉，您访问的文章可能已被删除或移动到其他位置</p>
+            <router-link to="/" class="btn-back-home">
+              <el-button type="primary">返回首页</el-button>
+            </router-link>
           </div>
         </div>
-        
-        <!-- 文章分类和标签 -->
-        <div class="article-categories-tags">
-          <div class="categories">
-            <span class="label">分类：</span>
-            <el-tag v-if="articleStore.currentArticle.category">
-              {{ articleStore.currentArticle.category.name }}
-            </el-tag>
-            <span v-else>未分类</span>
-          </div>
-          
-          <div class="tags">
-            <span class="label">标签：</span>
-            <el-tag 
-              v-for="tag in articleStore.currentArticle.tags" 
-              :key="tag.id" 
-              size="small" 
-              plain
-            >
-              {{ tag.name }}
-            </el-tag>
-            <span v-if="!articleStore.currentArticle.tags || articleStore.currentArticle.tags.length === 0">
-              无标签
-            </span>
-          </div>
-        </div>
+
+        <!-- 右侧边栏 -->
+        <aside class="article-sidebar">
+          <ArticleSidebar
+            :author="articleStore.currentArticle?.author"
+            :relatedArticles="relatedArticles"
+            :loadingRelated="loadingRelatedArticles"
+            :recommendArticles="articleStore.recommendArticles"
+          />
+        </aside>
       </div>
-      
-      <!-- 文章内容 - 使用拆分组件 -->
-      <ArticleContent :content="articleStore.currentArticle.content" />
-      
-      <!-- 文章操作按钮 -->
-      <div class="article-actions">
-        <el-button 
-          :type="isLiked ? 'primary' : 'default'" 
-          @click="handleLike"
-          icon="el-icon-thumb"
-          :loading="isLiking"
-        >
-          {{ isLiked ? '已点赞' : '点赞' }}
-        </el-button>
-        
-        <el-button 
-          type="default" 
-          @click="handleFavorite"
-          icon="el-icon-star-on"
-          :loading="isFavoriting"
-          :type="isFavorited ? 'warning' : 'default'"
-        >
-          {{ isFavorited ? '已收藏' : '收藏' }}
-        </el-button>
-        
-        <el-button 
-          type="default" 
-          @click="handleShare"
-          icon="el-icon-share"
-        >
-          分享
-        </el-button>
-        
-        <!-- 作者操作 -->
-        <div v-if="isAuthor" class="author-actions">
-          <router-link 
-            :to="`/articles/edit?id=${articleStore.currentArticle.id}`" 
-            class="btn-edit"
-          >
-            <el-button type="primary" icon="el-icon-edit">编辑</el-button>
-          </router-link>
-          
-          <el-button 
-            type="danger" 
-            icon="el-icon-delete" 
-            @click="handleDelete"
-            :loading="articleStore.deleting"
-          >
-            删除
-          </el-button>
-        </div>
-      </div>
-      
-      <!-- 文章导航 -->
-      <div class="article-navigation">
-        <div class="nav-prev" v-if="prevArticle">
-          <router-link :to="`/article/${prevArticle.id}`" class="nav-link">
-            <span class="nav-label">上一篇</span>
-            <span class="nav-title">{{ prevArticle.title }}</span>
-          </router-link>
-        </div>
-        
-        <div class="nav-next" v-if="nextArticle">
-          <router-link :to="`/article/${nextArticle.id}`" class="nav-link">
-            <span class="nav-label">下一篇</span>
-            <span class="nav-title">{{ nextArticle.title }}</span>
-          </router-link>
-        </div>
-      </div>
-      
-      <!-- 评论区 - 使用拆分组件 -->
-      <ArticleComments 
-        :comments="comments"
-        :loading="loadingComments"
-        :isAuthenticated="authStore.isAuthenticated"
-        :user="authStore.user"
-        @submitComment="handleSubmitComment"
-        @commentLike="handleCommentLike"
-        @updateCount="updateCommentCount"
-      />
     </div>
     
-    <!-- 文章不存在 -->
-    <div v-else class="article-not-found">
-      <el-empty description="文章不存在或已被删除" />
-      <router-link to="/" class="btn-back-home">
-        <el-button type="primary">返回首页</el-button>
-      </router-link>
-    </div>
-    
-    <!-- 侧边栏 - 使用拆分组件 -->
-    <ArticleSidebar 
-      :author="articleStore.currentArticle?.author"
-      :relatedArticles="relatedArticles"
-      :loadingRelated="loadingRelatedArticles"
-      :recommendArticles="articleStore.recommendArticles"
-    />
+    <!-- 分享对话框 -->
+    <el-dialog v-model="showShareDialog" title="分享文章" width="360px" center>
+      <div class="share-dialog-content">
+        <div class="share-url">
+          <input 
+            type="text" 
+            :value="shareUrl" 
+            readonly 
+            class="share-input"
+          />
+          <el-button @click="copyShareUrl" type="primary" size="small">复制链接</el-button>
+        </div>
+        <div class="share-platforms">
+          <button class="share-platform" v-for="platform in sharePlatforms" :key="platform.id" @click="shareToPlatform(platform)">
+            <el-icon :size="24">{{ platform.icon }}</el-icon>
+            <span>{{ platform.name }}</span>
+          </button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useArticleStore } from '../store/modules/article'
-import { useAuthStore } from '../store/modules/auth'
-import { useSocialStore } from '../store/modules/social'
-import { useCommentStore } from '../store/modules/comment'
+import { useArticleStore } from '@/store/modules/article'
+import { useAuthStore } from '@/store/modules/auth'
+import { useSocialStore } from '@/store/modules/social'
 import { ElMessage, ElMessageBox } from 'element-plus'
-// 导入拆分的组件
-import ArticleContent from '../components/article/ArticleContent.vue'
-import ArticleComments from '../components/article/ArticleComments.vue'
-import ArticleSidebar from '../components/article/ArticleSidebar.vue'
+import { 
+  ArrowLeft, ArrowRight, View, ChatDotRound, Thumb, Star, Share, 
+  WarningFilled, Edit, Delete, DocumentDelete 
+} from '@element-plus/icons-vue'
+// 导入组件
+import ArticleContent from '@/components/article/ArticleContent.vue'
+import ArticleComments from '@/components/article/ArticleComments.vue'
+import ArticleSidebar from '@/components/article/ArticleSidebar.vue'
 
 const route = useRoute()
 const router = useRouter()
 const articleStore = useArticleStore()
 const authStore = useAuthStore()
 const socialStore = useSocialStore()
-const commentStore = useCommentStore()
 
 // 响应式数据
-// 使用store中的状态替代本地状态
 const isLiked = computed(() => socialStore.isArticleLiked(route.params.id))
 const isFavorited = computed(() => socialStore.isArticleFavorited(route.params.id))
 const isLiking = computed(() => socialStore.loading.like)
 const isFavoriting = computed(() => socialStore.loading.favorite)
-
-// 评论数据
-const comments = ref([])
-const loadingComments = ref(false)
+const isFollowingLoading = ref(false)
+const isFollowing = ref(false)
+const readingProgress = ref(0)
+const showShareDialog = ref(false)
 
 // 相关文章
 const relatedArticles = ref([])
 const loadingRelatedArticles = ref(false)
 
-// 上一篇和下一篇文章（先用mock数据）
+// 上一篇/下一篇文章
 const prevArticle = ref(null)
 const nextArticle = ref(null)
 
-// 判断是否是作者
+// 分享相关
+const sharePlatforms = ref([
+  { id: 'wechat', name: '微信', icon: 'Wechat' },
+  { id: 'weibo', name: '微博', icon: 'Weibo' },
+  { id: 'copy', name: '复制链接', icon: 'DocumentCopy' }
+])
+const shareUrl = computed(() => {
+  return `${window.location.origin}/article/${route.params.id}`
+})
+
+// 判断是否是文章作者
 const isAuthor = computed(() => {
   if (!articleStore.currentArticle || !authStore.isAuthenticated) {
     return false
@@ -210,48 +322,73 @@ const isAuthor = computed(() => {
   return authStore.user?.id === articleStore.currentArticle.author?.id
 })
 
-// 格式化日期
+// 估算阅读时间（基于中文文章，假设平均阅读速度为每分钟300字）
+const estimatedReadingTime = computed(() => {
+  const content = articleStore.currentArticle?.content || ''
+  // 移除HTML标签，计算纯文本长度
+  const text = content.replace(/<[^>]*>/g, '')
+  const wordCount = text.length
+  // 四舍五入到最近的整数分钟
+  return Math.max(1, Math.round(wordCount / 300))
+})
+
+/**
+ * 格式化日期
+ */
 const formatDate = (dateString) => {
+  if (!dateString) return ''
   const date = new Date(dateString)
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'long',
-    day: 'numeric'
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   })
 }
 
-// 点赞文章
+/**
+ * 格式化数字（1000 -> 1k）
+ */
+const formatNumber = (num) => {
+  if (num >= 10000) {
+    return (num / 10000).toFixed(1) + 'w'
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
+
+/**
+ * 文章点赞
+ */
 const handleLike = async () => {
-  const currentStatus = socialStore.isArticleLiked(route.params.id)
-  const newStatus = !currentStatus
+  // 检查是否登录
+  if (!authStore.isAuthenticated) {
+    toLogin()
+    return
+  }
   
+  const newStatus = !isLiked.value
   try {
     await socialStore.updateLikeStatus(route.params.id, newStatus)
-    
-    // 更新文章点赞数
-    if (articleStore.currentArticle) {
-      if (newStatus) {
-        articleStore.currentArticle.likes++
-        ElMessage.success('点赞成功')
-      } else {
-        articleStore.currentArticle.likes = Math.max(0, articleStore.currentArticle.likes - 1)
-        ElMessage.success('取消点赞成功')
-      }
-    }
+    ElMessage.success(newStatus ? '点赞成功' : '取消点赞成功')
   } catch (error) {
-    console.error('点赞操作失败:', error)
-    if (error.code === 'UNAUTHORIZED') {
-      toLogin()
-    } else if (error.code === 'PERMISSION_DENIED') {
-      ElMessage.warning('您没有权限进行点赞操作')
-    } else {
-      ElMessage.error('操作失败，请稍后重试')
-    }
+    console.error('点赞失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
   }
 }
 
-// 收藏文章
+/**
+ * 文章收藏
+ */
 const handleFavorite = async () => {
+  // 检查是否登录
+  if (!authStore.isAuthenticated) {
+    toLogin()
+    return
+  }
+  
   try {
     if (isFavorited.value) {
       await socialStore.unfavoriteArticle(route.params.id)
@@ -261,200 +398,193 @@ const handleFavorite = async () => {
       ElMessage.success('收藏成功')
     }
   } catch (error) {
-    console.error('收藏操作失败:', error)
-    if (error.code === 'UNAUTHORIZED') {
-      toLogin()
-    } else if (error.code === 'PERMISSION_DENIED') {
-      ElMessage.warning('您没有权限进行收藏操作')
-    } else {
-      ElMessage.error('操作失败，请稍后重试')
-    }
+    console.error('收藏失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
   }
 }
 
-// 分享文章
-const handleShare = async () => {
+/**
+ * 显示分享对话框
+ */
+const handleShare = () => {
+  showShareDialog.value = true
+}
+
+/**
+ * 复制分享链接
+ */
+const copyShareUrl = async () => {
   try {
-    // 复制链接到剪贴板
-    const url = `${window.location.origin}/article/${route.params.id}`
-    await navigator.clipboard.writeText(url)
-    
-    // 记录分享行为（即使未登录也可以分享，但只有登录用户会记录分享行为）
+    await navigator.clipboard.writeText(shareUrl.value)
+    ElMessage.success('链接已复制到剪贴板')
+    // 分享记录（可选）
     try {
       await socialStore.shareArticle(route.params.id, 'copy')
-    } catch (shareError) {
-      // 分享记录失败不影响用户体验
-      console.log('分享记录失败（可能未登录）:', shareError)
+    } catch (e) {
+      console.log('分享记录失败:', e)
     }
-    
-    ElMessage.success('链接已复制到剪贴板')
+  } catch (error) {
+    console.error('复制失败:', error)
+    ElMessage.error('复制失败，请稍后重试')
+  }
+}
+
+/**
+ * 分享到特定平台
+ */
+const shareToPlatform = async (platform) => {
+  try {
+    if (platform.id === 'copy') {
+      await copyShareUrl()
+    } else {
+      // 实际项目中需要集成各平台分享API
+      ElMessage.info(`${platform.name}分享功能开发中`)
+      try {
+        await socialStore.shareArticle(route.params.id, platform.id)
+      } catch (e) {
+        console.log('分享记录失败:', e)
+      }
+    }
   } catch (error) {
     console.error('分享失败:', error)
     ElMessage.error('分享失败，请稍后重试')
   }
 }
 
-// 删除文章
+/**
+ * 关注作者
+ */
+const handleFollow = async () => {
+  if (!authStore.isAuthenticated) {
+    toLogin()
+    return
+  }
+  
+  isFollowingLoading.value = true
+  try {
+    const authorId = articleStore.currentArticle.author.id
+    if (isFollowing.value) {
+      await socialStore.unfollowUser(authorId)
+      ElMessage.success('已取消关注')
+    } else {
+      await socialStore.followUser(authorId)
+      ElMessage.success('关注成功')
+    }
+    isFollowing.value = !isFollowing.value
+  } catch (error) {
+    console.error('关注操作失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
+  } finally {
+    isFollowingLoading.value = false
+  }
+}
+
+/**
+ * 举报文章
+ */
+const handleReport = async () => {
+  if (!authStore.isAuthenticated) {
+    toLogin()
+    return
+  }
+  
+  try {
+    await ElMessageBox.prompt(
+      '请输入举报原因',
+      '举报文章',
+      {
+        confirmButtonText: '提交',
+        cancelButtonText: '取消',
+        inputPlaceholder: '请简要描述举报原因',
+        inputValidator: (value) => {
+          if (!value || value.trim().length < 5) {
+            return '举报原因至少需要5个字符'
+          }
+          return true
+        }
+      }
+    )
+    ElMessage.success('举报已提交，我们会尽快处理')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      console.error('举报失败:', error)
+    }
+  }
+}
+
+/**
+ * 删除文章
+ */
 const handleDelete = async () => {
   try {
-    const confirm = await ElMessageBox.confirm(
+    await ElMessageBox.confirm(
       '确定要删除这篇文章吗？删除后无法恢复。',
       '删除确认',
       {
-        confirmButtonText: '确定',
+        type: 'warning',
+        confirmButtonText: '确认删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        confirmButtonClass: 'el-button--danger'
       }
     )
-    
-    if (confirm) {
-      await articleStore.deleteArticle(route.params.id)
-      ElMessage.success('文章删除成功')
-      // 跳转到首页
-      router.push('/')
-    }
+    await articleStore.deleteArticle(route.params.id)
+    ElMessage.success('删除成功')
+    router.push('/')
   } catch (error) {
-    if (error !== 'cancel') {
+    if (error !== 'cancel' && error !== 'close') {
       console.error('删除失败:', error)
       ElMessage.error('删除失败，请稍后重试')
     }
   }
 }
 
-// 提交评论
-const handleSubmitComment = async (content) => {
-  if (!authStore.isAuthenticated) {
-    toLogin()
-    throw new Error('请先登录')
-  }
-  
-  try {
-    // 调用真实API发表评论
-    const newComment = await commentStore.addComment({
-      articleId: route.params.id,
-      content
-    })
-    
-    // 添加新评论到列表开头
-    comments.value.unshift({
-      ...newComment,
-      user: authStore.user,
-      replies: [],
-      likeCount: 0
-    })
-    
-    // 更新评论数
-    updateCommentCount(comments.value.length)
-    
-    ElMessage.success('评论发表成功')
-  } catch (error) {
-    console.error('发表评论失败:', error)
-    ElMessage.error('评论发表失败，请稍后重试')
-    throw error
-  }
-}
-
-// 更新评论数
-const updateCommentCount = (newCount) => {
-  if (articleStore.currentArticle) {
-    articleStore.currentArticle.commentCount = newCount
-  }
-}
-
-// 点赞评论
-const handleCommentLike = async (data) => {
-  if (data.type === 'login' || !authStore.isAuthenticated) {
-    toLogin()
-    return
-  }
-  
-  try {
-    // 调用真实API点赞评论
-    const newStatus = await socialStore.toggleCommentLike(data.id)
-    
-    // 查找对应的评论或回复并更新点赞数
-    const updateLikeCount = (items, id) => {
-      for (const item of items) {
-        if (item.id === id) {
-          item.likeCount = (item.likeCount || 0) + (newStatus ? 1 : -1)
-          return true
-        }
-        if (item.replies) {
-          if (updateLikeCount(item.replies, id)) return true
-        }
-      }
-      return false
-    }
-    
-    updateLikeCount(comments.value, data.id)
-  } catch (error) {
-    console.error('评论点赞失败:', error)
-    ElMessage.error('点赞失败，请稍后重试')
-    throw error
-  }
-}
-
-// 跳转到登录页
+/**
+ * 跳转到登录页
+ */
 const toLogin = () => {
-  const currentPath = encodeURIComponent(window.location.pathname)
-  router.push(`/login?redirect=${currentPath}`)
+  const redirect = encodeURIComponent(window.location.pathname)
+  router.push(`/login?redirect=${redirect}`)
 }
 
-// 图片懒加载初始化
+/**
+ * 更新阅读进度
+ */
+const updateReadingProgress = () => {
+  const scrollTop = window.scrollY
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight
+  const progress = Math.min((scrollTop / docHeight) * 100, 100)
+  readingProgress.value = progress
+}
+
+/**
+ * 图片懒加载初始化
+ */
 const initImageLazyLoad = () => {
   nextTick(() => {
-    // 监听滚动事件，处理可视区域内的图片加载
     const handleScroll = () => {
       const images = document.querySelectorAll('img[loading="lazy"]')
       images.forEach(img => {
         const rect = img.getBoundingClientRect()
-        if (rect.top < window.innerHeight && rect.bottom >= 0) {
-          // 图片进入可视区域
+        if (rect.top < window.innerHeight + 200 && rect.bottom >= -200) {
           img.removeAttribute('loading')
         }
       })
-      
-      // 如果所有图片都已加载，移除事件监听
       if (document.querySelectorAll('img[loading="lazy"]').length === 0) {
         window.removeEventListener('scroll', handleScroll)
       }
     }
-    
-    // 初始检查
     handleScroll()
-    // 添加滚动监听
     window.addEventListener('scroll', handleScroll, { passive: true })
-    
-    // 组件卸载时清理
-    return () => {
-      window.removeEventListener('scroll', handleScroll)
-    }
+    return () => window.removeEventListener('scroll', handleScroll)
   })
 }
 
-// 获取文章评论
-const fetchComments = async () => {
-  loadingComments.value = true
-  try {
-    const data = await commentStore.fetchComments({
-      articleId: route.params.id,
-      page: 1,
-      pageSize: 20
-    })
-    comments.value = data.records || []
-  } catch (error) {
-    console.error('获取评论失败:', error)
-  } finally {
-    loadingComments.value = false
-  }
-}
-
-// 获取相关文章
+/**
+ * 获取相关文章
+ */
 const fetchRelatedArticles = async () => {
   loadingRelatedArticles.value = true
   try {
-    // 这里假设API支持根据当前文章ID获取相关文章
-    // 如果没有专门的API，可以使用文章分类或标签来获取相关文章
     const currentArticle = articleStore.currentArticle
     if (currentArticle && currentArticle.category?.id) {
       const categoryArticles = await articleStore.fetchArticleList({
@@ -473,120 +603,270 @@ const fetchRelatedArticles = async () => {
   }
 }
 
-// 获取文章详情
-const fetchArticleDetail = async () => {
+/**
+ * 获取文章导航（上一篇/下一篇）
+ */
+const fetchArticleNavigation = async () => {
   try {
-    // 使用请求缓存优化
-    const cachedArticle = sessionStorage.getItem(`article_${route.params.id}`)
-    if (cachedArticle && !articleStore.loadingDetail) {
-      articleStore.currentArticle = JSON.parse(cachedArticle)
-      // 异步更新数据
-      setTimeout(() => {
-        articleStore.fetchArticleDetail(route.params.id).then(data => {
-          sessionStorage.setItem(`article_${route.params.id}`, JSON.stringify(data))
-        })
-      }, 1000)
-    } else {
-      const data = await articleStore.fetchArticleDetail(route.params.id)
-      sessionStorage.setItem(`article_${route.params.id}`, JSON.stringify(data))
+    const currentArticle = articleStore.currentArticle
+    if (currentArticle && currentArticle.category?.id) {
+      const articles = await articleStore.fetchArticleList({
+        categoryId: currentArticle.category.id,
+        page: 1,
+        pageSize: 50,
+        sort: 'createdAt',
+        order: 'desc'
+      })
+      
+      const index = articles.records.findIndex(article => article.id === currentArticle.id)
+      if (index > 0) {
+        prevArticle.value = articles.records[index - 1]
+      }
+      if (index < articles.records.length - 1) {
+        nextArticle.value = articles.records[index + 1]
+      }
     }
-    
-    // 并发获取推荐文章、相关文章、评论和社交状态
+  } catch (error) {
+    console.error('获取文章导航失败:', error)
+  }
+}
+
+/**
+ * 检查关注状态
+ */
+const checkFollowStatus = async () => {
+  if (!authStore.isAuthenticated || !articleStore.currentArticle?.author?.id) {
+    isFollowing.value = false
+    return
+  }
+  
+  try {
+    isFollowing.value = await socialStore.checkFollowStatus(articleStore.currentArticle.author.id)
+  } catch (error) {
+    console.error('检查关注状态失败:', error)
+  }
+}
+
+/**
+ * 获取文章详情
+ */
+const fetchArticleDetail = async (articleId) => {
+  try {
+    // 清空旧数据
+    articleStore.clearCurrentArticle()
+    relatedArticles.value = []
+    prevArticle.value = null
+    nextArticle.value = null
+    readingProgress.value = 0
+
+    // 获取文章详情
+    const data = await articleStore.fetchArticleDetail(articleId)
+    // 缓存文章数据
+    sessionStorage.setItem(`article_${articleId}`, JSON.stringify(data))
+
+    // 并行加载关联数据
     await Promise.all([
       articleStore.fetchRecommendArticles(5),
       fetchRelatedArticles(),
-      fetchComments(),
-      // 如果用户已登录，获取文章点赞和收藏状态
+      fetchArticleNavigation(),
+      // 登录状态下加载点赞/收藏状态和关注状态
       authStore.isAuthenticated && Promise.all([
-        socialStore.fetchArticleLikeStatus(route.params.id),
-        socialStore.fetchArticleFavoriteStatus(route.params.id)
+        socialStore.fetchArticleLikeStatus(articleId),
+        socialStore.fetchArticleFavoriteStatus(articleId),
+        checkFollowStatus()
       ])
     ])
-    
+
     // 初始化图片懒加载
     initImageLazyLoad()
   } catch (error) {
     console.error('获取文章详情失败:', error)
     ElMessage.error('获取文章失败，请稍后重试')
+
+    // 加载缓存数据（如果有）
+    const cachedArticle = sessionStorage.getItem(`article_${articleId}`)
+    if (cachedArticle) {
+      try {
+        const cachedData = JSON.parse(cachedArticle)
+        articleStore.setCurrentArticle(cachedData)
+      } catch (parseError) {
+        console.error('解析缓存文章失败:', parseError)
+      }
+    }
   }
 }
 
-// 使用防抖优化路由变化处理
-let fetchTimer = null
+/**
+ * 监听路由变化，重新加载文章
+ */
+const isLoading = ref(false)
 watch(
   () => route.params.id,
-  (newId) => {
-    if (newId) {
-      if (fetchTimer) clearTimeout(fetchTimer)
-      fetchTimer = setTimeout(() => {
-        fetchArticleDetail()
-      }, 100)
+  async (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      isLoading.value = true
+      await fetchArticleDetail(newId)
+      isLoading.value = false
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 )
 
-// 页面加载时检查登录状态
+/**
+ * 页面初始化
+ */
 onMounted(() => {
   authStore.checkLoginStatus()
+  window.addEventListener('scroll', updateReadingProgress, { passive: true })
+})
+
+/**
+ * 组件卸载时清理
+ */
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateReadingProgress)
 })
 </script>
 
 <style scoped>
-.article-detail-container {
+/* 全局样式变量 */
+:root {
+  --primary-color: #409eff;
+  --success-color: #67c23a;
+  --warning-color: #e6a23c;
+  --danger-color: #f56c6c;
+  --text-primary: #303133;
+  --text-regular: #606266;
+  --text-secondary: #909399;
+  --text-placeholder: #c0c4cc;
+  --border-color: #e4e7ed;
+  --border-light: #ebeef5;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f7fa;
+  --transition-normal: all 0.3s ease;
+  --shadow-base: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* 基础布局 */
+.article-detail-page {
+  background-color: var(--bg-secondary);
+  min-height: 100vh;
+  position: relative;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.article-detail-layout {
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: 30px;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px 0;
+  padding: 40px 0 60px;
 }
 
-.article-detail {
-  background-color: #fff;
-  border-radius: 8px;
-  padding: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  animation: fadeIn 0.3s ease-in-out;
+/* 阅读进度条 */
+.reading-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background-color: var(--primary-color);
+  z-index: 1000;
+  transition: width 0.2s ease;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* 返回按钮 */
+.back-button {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  z-index: 100;
+  backdrop-filter: blur(5px);
 }
 
+.back-button:hover {
+  background-color: var(--bg-primary);
+  transform: translateX(-3px);
+  box-shadow: var(--shadow-light);
+}
+
+/* 左侧主要内容区域 */
+.article-main-content {
+  background-color: var(--bg-primary);
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: var(--shadow-light);
+  position: relative;
+}
+
+/* 加载状态 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border-light);
+  border-top-color: var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-state p {
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+
+/* 文章头部 */
 .article-header {
-  margin-bottom: 32px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 40px;
 }
 
 .article-title {
-  font-size: 28px;
+  font-size: 2.2rem;
   font-weight: 700;
-  color: #303133;
-  margin-bottom: 20px;
+  color: var(--text-primary);
   line-height: 1.3;
+  margin-bottom: 24px;
   word-break: break-word;
-}
-
-.article-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
 }
 
 .author-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.author-avatar-container {
+  display: block;
 }
 
 .author-avatar {
@@ -594,6 +874,7 @@ onMounted(() => {
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--border-light);
   transition: transform 0.3s ease;
 }
 
@@ -602,235 +883,540 @@ onMounted(() => {
 }
 
 .author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .author-name {
+  display: inline-block;
+  font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  transition: var(--transition-normal);
+  text-decoration: none;
 }
 
-.publish-date {
+.author-name:hover {
+  color: var(--primary-color);
+}
+
+.article-meta-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
-  color: #909399;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
 }
 
+.separator {
+  display: inline-block;
+  width: 1px;
+  height: 12px;
+  background-color: var(--border-color);
+}
+
+.follow-button {
+  padding: 6px 16px;
+  border: 1px solid var(--primary-color);
+  background-color: transparent;
+  color: var(--primary-color);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition-normal);
+  white-space: nowrap;
+}
+
+.follow-button:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.follow-button.followed {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.follow-button.followed:hover {
+  background-color: transparent;
+  color: var(--primary-color);
+}
+
+/* 文章统计 */
 .article-stats {
   display: flex;
-  gap: 20px;
-  font-size: 14px;
-  color: #909399;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 24px;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-regular);
   transition: color 0.3s ease;
 }
 
 .stat-item:hover {
-  color: #1890ff;
+  color: var(--primary-color);
 }
 
-.article-categories-tags {
+/* 分类和标签 */
+.article-taxonomies {
   display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  font-size: 14px;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.categories,
-.tags {
+.categories {
   display: flex;
   align-items: center;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
-.label {
-  color: #909399;
+.category-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  background-color: #e6f7ff;
+  color: var(--primary-color);
+  border-radius: 4px;
+  font-size: 14px;
+  text-decoration: none;
+  transition: var(--transition-normal);
 }
 
+.category-badge:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.no-category {
+  color: var(--text-placeholder);
+  font-size: 14px;
+  font-style: italic;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background-color: var(--bg-secondary);
+  color: var(--text-regular);
+  border-radius: 12px;
+  font-size: 13px;
+  text-decoration: none;
+  transition: var(--transition-normal);
+  border: 1px solid transparent;
+}
+
+.tag:hover {
+  background-color: transparent;
+  color: var(--primary-color);
+  border-color: var(--border-color);
+  transform: translateY(-1px);
+}
+
+/* 文章内容 */
+.article-content {
+  margin-bottom: 40px;
+}
+
+/* 文章底部信息 */
+.article-footer {
+  padding: 20px 0;
+  border-top: 1px solid var(--border-light);
+  margin-bottom: 30px;
+}
+
+.update-info {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* 文章操作工具栏 */
 .article-actions {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
   padding: 20px 0;
-  border-top: 1px solid #f0f0f0;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 32px;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  background-color: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-regular);
+  transition: var(--transition-normal);
+}
+
+.action-button:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background-color: #f0f9ff;
+}
+
+.action-button.active {
+  border-color: var(--primary-color);
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.action-button.active:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .author-actions {
-  margin-left: auto;
   display: flex;
   gap: 12px;
 }
 
+.edit-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: var(--success-color);
+  color: white;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: var(--transition-normal);
+}
+
+.edit-button:hover {
+  background-color: #85ce61;
+}
+
+.delete-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background-color: var(--danger-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: var(--transition-normal);
+}
+
+.delete-button:hover {
+  background-color: #f78989;
+}
+
+/* 文章导航 */
 .article-navigation {
   display: flex;
   justify-content: space-between;
-  padding: 24px 0;
-  border-bottom: 1px solid #f0f0f0;
-  margin-bottom: 32px;
+  margin-bottom: 50px;
+  gap: 20px;
 }
 
-.nav-link {
+.nav-item {
+  flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  padding: 20px;
+  background-color: var(--bg-secondary);
+  border-radius: 8px;
   text-decoration: none;
-  color: inherit;
-  max-width: 45%;
-  transition: transform 0.3s ease;
+  transition: var(--transition-normal);
+  border: 1px solid transparent;
 }
 
-.nav-link:hover {
-  transform: translateX(8px);
+.nav-item:hover {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-light);
+}
+
+.nav-item.prev .nav-icon {
+  margin-right: 12px;
+  color: var(--primary-color);
+}
+
+.nav-item.next .nav-icon {
+  margin-left: 12px;
+  color: var(--primary-color);
+}
+
+.nav-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .nav-label {
-  font-size: 14px;
-  color: #909399;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
 }
 
 .nav-title {
-  font-size: 16px;
+  font-size: 14px;
+  color: var(--text-primary);
   font-weight: 500;
-  color: #303133;
-  transition: color 0.3s;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.nav-title:hover {
-  color: #1890ff;
+/* 评论区 */
+.comments-section {
+  margin-top: 50px;
 }
 
-.nav-prev .nav-link {
-  align-items: flex-start;
+.comments-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 30px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
 }
 
-.nav-next .nav-link {
-  align-items: flex-end;
-}
-
+/* 文章不存在 */
 .article-not-found {
   text-align: center;
-  padding: 60px 0;
+  padding: 60px 20px;
+}
+
+.not-found-icon {
+  font-size: 64px;
+  color: var(--text-placeholder);
+  margin-bottom: 20px;
+}
+
+.article-not-found h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.article-not-found p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
 }
 
 .btn-back-home {
-  margin-top: 20px;
   display: inline-block;
 }
 
-.loading-state {
-  background-color: #fff;
+/* 右侧边栏 */
+.article-sidebar {
+  position: sticky;
+  top: 80px;
+  height: fit-content;
+}
+
+/* 分享对话框 */
+.share-dialog-content {
+  padding: 10px 0;
+}
+
+.share-url {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.share-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.share-platforms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.share-platform {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--border-light);
   border-radius: 8px;
-  padding: 32px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background-color: var(--bg-secondary);
+  cursor: pointer;
+  transition: var(--transition-normal);
 }
 
-/* 响应式设计优化 */
+.share-platform:hover {
+  border-color: var(--primary-color);
+  background-color: var(--bg-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-light);
+}
+
+.share-platform span {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-regular);
+}
+
+/* 响应式设计 */
 @media (max-width: 1024px) {
-  .article-detail-container {
-    grid-template-columns: 1fr 250px;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 992px) {
-  .article-detail-container {
+  .article-detail-layout {
     grid-template-columns: 1fr;
+    padding: 30px 0 50px;
     gap: 20px;
   }
   
-  .article-meta {
+  .article-main-content {
+    padding: 30px;
+  }
+  
+  .article-title {
+    font-size: 1.8rem;
+  }
+  
+  .article-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 16px;
+  }
+  
+  .article-main-content {
+    padding: 24px;
+  }
+  
+  .article-title {
+    font-size: 1.5rem;
+  }
+  
+  .author-info {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
   
   .article-stats {
-    align-self: flex-start;
-  }
-}
-
-@media (max-width: 768px) {
-  .article-detail-container {
-    padding: 16px 0;
-  }
-  
-  .article-detail {
-    padding: 20px;
-  }
-  
-  .article-title {
-    font-size: 24px;
+    gap: 16px;
   }
   
   .article-actions {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
   }
   
   .author-actions {
-    margin-left: 0;
     width: 100%;
-    margin-top: 12px;
+    justify-content: center;
   }
   
   .article-navigation {
     flex-direction: column;
-    gap: 20px;
   }
   
-  .nav-link {
-    max-width: 100%;
+  .share-platforms {
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  .article-categories-tags {
-    flex-direction: column;
-    gap: 12px;
+  .back-button {
+    top: 16px;
+    left: 16px;
+    width: 36px;
+    height: 36px;
   }
 }
 
 @media (max-width: 480px) {
-  .article-detail {
-    padding: 16px;
+  .article-main-content {
+    padding: 20px 16px;
   }
   
   .article-title {
-    font-size: 20px;
+    font-size: 1.3rem;
   }
   
   .article-stats {
-    gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .action-button {
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .edit-button, .delete-button {
+    flex: 1;
+    justify-content: center;
   }
 }
 
-/* 暗黑模式支持 */
-:global(.dark-theme) .article-detail,
-:global(.dark-theme) .sidebar-section,
-:global(.dark-theme) .loading-state {
-  background-color: #1f1f1f;
-  color: #e0e0e0;
-}
-
-:global(.dark-theme) .article-title,
-:global(.dark-theme) .author-name,
-:global(.dark-theme) .nav-title {
-  color: #e0e0e0;
-}
-
-:global(.dark-theme) .article-header,
-:global(.dark-theme) .article-actions,
-:global(.dark-theme) .article-navigation {
-  border-color: #333;
+/* 暗黑主题适配 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-primary: #f5f5f5;
+    --text-regular: #dcdfe6;
+    --text-secondary: #c0c4cc;
+    --border-color: #434343;
+    --border-light: #303030;
+    --bg-primary: #1f1f1f;
+    --bg-secondary: #141414;
+    --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  .back-button {
+    background-color: rgba(31, 31, 31, 0.9);
+    border-color: var(--border-color);
+  }
+  
+  .follow-button {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+  
+  .action-button:hover {
+    background-color: rgba(64, 158, 255, 0.1);
+  }
 }
 </style>

@@ -3,6 +3,7 @@ package com.example.weijiahome.mapper;
 import com.example.weijiahome.entity.po.Comments;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,9 @@ import java.util.List;
 @Mapper
 public interface CommentsMapper extends BaseMapper<Comments> {
 
-    List<Comments> getComments(Integer articleId, Integer page, Integer pageSize);
+    List<Comments> getComments(  @Param("articleId") Integer articleId,
+                                 @Param("pageNum") Integer pageNum,
+                                 @Param("pageSize") Integer pageSize);
     @Select("select count(*) from blog.comments")
     Integer count();
 }

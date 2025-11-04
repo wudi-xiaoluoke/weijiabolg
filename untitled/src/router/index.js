@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../store/modules/auth'
 
 // 使用路由懒加载优化性能
 const ArticleListView = () => import('../views/article/ArticleListView.vue')
@@ -63,7 +64,8 @@ const routes = [
     component: ArticleEditView,
     meta: {
       title: '编辑文章 - 技术博客',
-      breadcrumb: '编辑文章'
+      breadcrumb: '编辑文章',
+      requiresAuth: true // 需要登录才能访问
     }
   },
   {
@@ -118,7 +120,8 @@ const routes = [
     component: AuthProfileView,
     meta: {
       title: '个人信息编辑 - 技术博客',
-      breadcrumb: '个人信息编辑'
+      breadcrumb: '个人信息编辑',
+      requiresAuth: true // 需要登录才能访问
     }
   },
   {
@@ -127,7 +130,8 @@ const routes = [
     component: UserProfileView,
     meta: {
       title: '个人配置 - 技术博客',
-      breadcrumb: '个人配置'
+      breadcrumb: '个人配置',
+      requiresAuth: true // 需要登录才能访问
     }
   },
   {
@@ -146,8 +150,47 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to, from, next) => {
+// 缓存authStore实例以避免重复创建
+let cachedAuthStore = null
+
+router.beforeEach(async (to, from, next) => {
+  // 设置页面标题
   document.title = to.meta.title || '技术博客'
+  
+  // 初始化authStore（如果尚未初始化）
+  if (!cachedAuthStore) {
+    cachedAuthStore = useAuthStore()
+  }
+  const authStore = cachedAuthStore
+  
+  // 确保authStore已初始化，特别是对于需要认证的路由
+  if (to.meta.requiresAuth && !authStore.isInitialized) {
+    try {
+      console.log('初始化auth状态...')
+      await authStore.initializeAuth()
+    } catch (error) {
+      console.error('auth初始化失败:', error)
+    }
+  }
+  
+  // 检查是否需要认证
+  if (to.meta.requiresAuth) {
+    // 再次检查认证状态，现在authStore应该已经初始化
+    if (!authStore.isAuthenticated) {
+      // 如果未登录，重定向到登录页面，并记录原始目标
+      console.log('需要登录才能访问:', to.path)
+      return next({
+        name: 'login',
+        query: { redirect: to.fullPath } // 记录原始请求路径，登录后可以重定向回来
+      })
+    }
+  } else if (to.name === 'login' && authStore.isAuthenticated) {
+    // 如果已登录但尝试访问登录页，则重定向到首页或指定的重定向地址
+    console.log('用户已登录，重定向到首页')
+    return next(from.query.redirect || '/')
+  }
+  
+  // 继续导航
   next()
 })
 

@@ -17,7 +17,7 @@ import com.example.weijiahome.entity.vo.SaveCommentVO;
  */
 public interface ICommentsService extends IService<Comments> {
 
-    CommentsListVO getComments(Integer articleId, Integer page, Integer pageSize);
+    CommentsListVO getComments(Integer userId,Integer articleId, Integer page, Integer pageSize);
 
     SaveCommentVO insert(Comments comment);
 

@@ -17,8 +17,14 @@ service.interceptors.request.use(
   config => {
     // 使用auth工具函数获取token
     const token = getToken();
+    console.log('请求拦截器 - 当前token:', token);
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // 确保token格式正确
+      const tokenString = typeof token === 'string' ? token : String(token);
+      config.headers.Authorization = `Bearer ${tokenString}`;
+      console.log('已设置Authorization头:', config.headers.Authorization);
+    } else {
+      console.log('未设置Authorization头，token不存在');
     }
     // 添加时间戳防止缓存
     if (config.method === 'get') {
@@ -38,15 +44,18 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   response => {
-    const { data } = response;
+    const { data, config } = response;
+    console.log(`响应拦截器 - ${config.url} - 原始响应数据:`, response);
     
-    // 模拟环境下，直接返回数据
-    if (process.env.NODE_ENV === 'development' && window.mockData) {
-      return Promise.resolve(data);
+    // 后端返回的是Result<T>格式，需要提取其中的data字段
+    // 如果data包含status字段，说明是标准的Result响应格式
+    if (data && (data.status === 'SUCCESS' || data.status === 'ERROR')) {
+      console.log(`响应拦截器 - ${config.url} - 提取的data字段:`, data.data);
+      return Promise.resolve(data.data);
     }
     
-    // 直接返回数据，不做额外处理
-    // 后端API文档显示直接返回数据对象，不包含外层状态码等信息
+    // 兼容其他可能的数据格式
+    console.log(`响应拦截器 - ${config.url} - 直接返回响应数据:`, data);
     return Promise.resolve(data);
   },
   error => {
@@ -84,17 +93,22 @@ service.interceptors.response.use(
     // 根据HTTP状态码处理
     switch (status) {
       case 401:
+        console.error('401未授权错误，清除token并重定向到登录页');
         removeToken();
-        window.location.href = '/login';
+        // 不要在登录过程中重定向，避免循环重定向
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         break;
       case 403:
-        console.error('服务器拒绝访问');
+        console.error('403禁止访问错误，可能是token无效或权限不足');
+        // 不要在获取用户信息失败时自动清除token，让登录流程继续
         break;
       case 404:
-        console.error('请求的资源不存在');
+        console.error('404请求的资源不存在');
         break;
       case 500:
-        console.error('服务器内部错误');
+        console.error('500服务器内部错误');
         break;
       default:
         console.error(`请求失败: ${status}`);

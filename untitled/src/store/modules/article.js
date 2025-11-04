@@ -109,13 +109,54 @@ export const useArticleStore = defineStore('article', {
       
       try {
         const response = await articleAPI.getArticleById(id)
+        
         // 适配后端返回的Result对象格式
+        let articleData = null
         if (response.data && response.data.data) {
-          this.currentArticle = response.data.data
-          return response.data.data
+          articleData = response.data.data
+        } else if (response.data) {
+          articleData = response.data
+        }
+        
+        // 映射后端字段到前端期望的格式
+        if (articleData) {
+          this.currentArticle = {
+            // 基础信息映射
+            id: articleData.id,
+            title: articleData.title || '',
+            content: articleData.content || '',
+            // 日期字段映射
+            createdAt: articleData.createTime || articleData.createdAt || null,
+            updatedAt: articleData.updateTime || articleData.updatedAt || null,
+            // 作者信息映射 - 根据API文档格式，确保author对象结构完整
+            author: articleData.author || {
+              id: articleData.authorId || null,
+              username: articleData.author?.username || articleData.authorName || '匿名用户',
+              avatar: articleData.author?.avatar || null
+            },
+            // 计数信息映射
+            viewCount: articleData.viewCount || 0,
+            commentCount: articleData.commentCount || 0,
+            likeCount: articleData.likeCount || 0,
+            likes: articleData.likeCount || 0, // 兼容前端代码中使用的likes字段
+            // 分类信息映射 - 根据API文档格式，确保category对象结构正确
+            category: articleData.category ? {
+              id: articleData.category.id,
+              name: articleData.category.name
+            } : null,
+            // 标签信息映射
+            tags: Array.isArray(articleData.tags) ? articleData.tags.map(tag => ({
+              id: tag.id,
+              name: tag.name
+            })) : [],
+            // 状态信息
+            status: articleData.status || 'published'
+          }
+          
+          return this.currentArticle
         } else {
-          this.currentArticle = response.data
-          return response.data
+          this.currentArticle = null
+          return null
         }
       } catch (error) {
         this.error = error.response?.data?.message || '获取文章详情失败'

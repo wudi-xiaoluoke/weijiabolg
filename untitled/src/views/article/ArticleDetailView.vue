@@ -18,7 +18,7 @@
       <div class="article-actions">
         <el-button size="small" @click="handleLike" :type="liked ? 'primary' : ''">
           <el-icon><Star /></el-icon>
-          点赞 ({{ article.likes }})
+          点赞 ({{ article.likes || article.likeCount || 0 }})
         </el-button>
         <el-button size="small" @click="handleFavorite" :type="favorited ? 'success' : ''">
           <el-icon><StarFilled /></el-icon>
@@ -67,22 +67,24 @@ const liked = ref(false)
 const favorited = ref(false)
 
 // 从后端获取文章数据
-const fetchArticleDetail = async () => {
-  try {
-    console.log('获取文章详情，文章ID:', articleId);
-    const response = await articleAPI.getArticleById(articleId);
-    console.log('文章详情获取成功:', response);
-    // 根据后端返回的数据结构调整绑定
-    article.value = {
-      id: response.id || articleId,
-      title: response.title || '文章标题',
-      author: response.author?.username || response.author || '未知作者',
-      date: response.createdAt ? formatDate(response.createdAt) : new Date().toLocaleDateString(),
-      category: response.category?.name || response.category || '未分类',
-      views: response.viewCount || response.views || 0,
-      likes: response.likeCount || response.likes || 0,
-      content: response.content || '<p>暂无内容</p>'
-    };
+  const fetchArticleDetail = async () => {
+    try {
+      console.log('获取文章详情，文章ID:', articleId);
+      const response = await articleAPI.getArticleById(articleId);
+      console.log('文章详情获取成功:', response);
+      // 正确从response.data中获取数据
+      const articleData = response.data || response;
+      // 根据后端返回的数据结构调整绑定
+      article.value = {
+        id: articleData.id || articleId,
+        title: articleData.title || '文章标题',
+        author: articleData.author?.username || articleData.author || '未知作者',
+        date: articleData.createTime || articleData.createdAt ? formatDate(articleData.createTime || articleData.createdAt) : new Date().toLocaleDateString(),
+        category: articleData.category?.name || articleData.category || '未分类',
+        views: articleData.viewCount || articleData.views || 0,
+        likes: articleData.likes || articleData.likeCount || 0,
+        content: articleData.content || '<p>暂无内容</p>'
+      };
   } catch (error) {
     console.error('获取文章详情失败:', error);
     ElMessage.error('获取文章详情失败');

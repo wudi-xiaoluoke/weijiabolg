@@ -253,7 +253,8 @@ const createArticle = () => {
 }
 
 const viewArticle = (id) => {
-  router.push(`/article/detail/${id}`)
+  // 使用location.href代替router.push以强制刷新页面
+  location.href = `/article/detail/${id}`
 }
 
 const editArticle = (id) => {

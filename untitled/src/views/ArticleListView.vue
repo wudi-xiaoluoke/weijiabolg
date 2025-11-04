@@ -62,7 +62,7 @@
                 title="点赞"
               >
                 <i class="el-icon-thumb"></i>
-                <span>{{ socialStore.getArticleLikeCount(article.id) || article.likeCount || 0 }}</span>
+                <span>{{ article.likes || article.likeCount || 0 }}</span>
               </button>
               <button 
                 class="action-btn favorite-btn" 

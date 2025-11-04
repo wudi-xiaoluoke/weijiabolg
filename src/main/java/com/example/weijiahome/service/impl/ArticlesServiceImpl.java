@@ -3,6 +3,7 @@ package com.example.weijiahome.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.example.weijiahome.entity.dto.CreatArticlesDTO;
 import com.example.weijiahome.entity.dto.GetArticlesDTO;
 import com.example.weijiahome.entity.po.*;
 import com.example.weijiahome.entity.vo.ArticleVO;
@@ -154,5 +155,39 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
         articlesMapper.update(null,UW);
         Articles articles = articlesMapper.selectById(id);
         return articles.getLikeCount();
+    }
+
+    /**
+     * 更新文章
+     * @param id 文章id
+     * @param articlesDTO 前端传递的修改后的文章对象
+     * @return
+     */
+    @Override
+    public Articles updateArticles(Integer id, CreatArticlesDTO articlesDTO) {
+        // 1. 参数校验：确保ID和DTO不为空
+        if (id == null || articlesDTO == null) {
+            throw new IllegalArgumentException("文章ID和更新数据不能为空");
+        }
+
+        // 2. 创建更新条件：根据ID定位要更新的文章
+        UpdateWrapper<Articles> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id); // 条件：id = 传入的id
+
+        // 3. 将DTO转换为实体类（如果需要更新的字段在DTO中，需映射到实体）
+        Articles articles = new Articles();
+        BeanUtils.copyProperties(articlesDTO, articles); // 复制DTO中的字段到实体
+
+        // 4. 执行更新操作（根据条件更新，只更新非空字段）
+        // 注意：如果DTO中有null字段，不会更新到数据库（保留原数据）
+        int rows = articlesMapper.update(articles, updateWrapper);
+
+        // 5. 校验更新结果
+        if (rows <= 0) {
+            throw new RuntimeException("更新失败，未找到ID为" + id + "的文章或数据未变化");
+        }
+
+        // 6. 返回更新后的文章（重新查询一次数据库获取最新数据）
+        return articlesMapper.selectById(id);
     }
 }
