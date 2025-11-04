@@ -2,13 +2,13 @@
   <el-card class="comments-card" shadow="hover">
     <template #header>
       <div class="card-header">
-        <span>评论 ({{ commentStore.totalComments || 0 }})</span>
+        <span>评论 ({{ commentStore.currentArticleComments.length || 0 }})</span>
       </div>
     </template>
 
     <!-- 评论输入框（登录后显示） -->
     <div class="comment-input-section" v-if="isAuthenticated">
-      <el-avatar :size="40" :src="user?.avatar || '/default-avatar.svg'" />
+      <el-avatar :size="40" :src="currentUser?.avatar || '/default-avatar.svg'" />
       <div class="comment-input-wrapper">
         <el-input
             v-model="commentText"
@@ -32,6 +32,8 @@
     <!-- 未登录提示 -->
     <el-empty description="请先登录后发表评论" v-else class="login-tip" />
 
+    
+
     <!-- 评论列表 -->
     <div class="comments-list" v-if="commentStore.currentArticleComments.length > 0">
       <div
@@ -50,7 +52,7 @@
                 type="text"
                 color="danger"
                 @click="deleteComment(comment.id)"
-                v-if="isAuthenticated && user?.id === comment.author?.id"
+                v-if="isAuthenticated && currentUser?.id === comment.author?.id"
             >
               删除
             </el-button>
@@ -89,7 +91,7 @@
                       type="text"
                       color="danger"
                       @click="deleteComment(reply.id)"
-                      v-if="isAuthenticated && user?.id === reply.author?.id"
+                      v-if="isAuthenticated && currentUser?.id === reply.author?.id"
                   >
                     删除
                   </el-button>
@@ -161,10 +163,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { Star, ChatDotRound } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useCommentStore } from '@/store/modules/comment'
+import { useAuthStore } from '@/store/modules/auth'
 
 // 接收父组件参数
 const props = defineProps({
@@ -184,12 +187,34 @@ const props = defineProps({
 
 // 状态管理
 const commentStore = useCommentStore()
+const authStore = useAuthStore()
 const commentText = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const replyingTo = ref(null) // 正在回复的评论ID
 const replyText = ref('')
 const replyToAuthor = ref('') // 被回复的用户名
+
+// 计算属性：获取登录状态（优先使用authStore，其次使用props）
+const isAuthenticated = computed(() => {
+  // 优先使用authStore的状态，如果为false再检查props和localStorage
+  return authStore.isAuthenticated || props.isAuthenticated || !!localStorage.getItem('token')
+})
+
+// 计算属性：获取用户信息
+const currentUser = computed(() => {
+  // 优先使用authStore的用户信息，如果不存在再尝试从props或localStorage获取
+  if (authStore.user) return authStore.user
+  if (props.user) return props.user
+  // 尝试从localStorage获取用户信息
+  try {
+    const userStr = localStorage.getItem('user')
+    return userStr ? JSON.parse(userStr) : null
+  } catch (e) {
+    console.error('Failed to parse user from localStorage:', e)
+    return null
+  }
+})
 
 // 监听文章ID变化，重新加载评论
 watch(
@@ -203,6 +228,8 @@ watch(
     },
     { immediate: true } // 组件挂载时立即执行
 )
+
+// 监听评论数据变化 - 已移除调试日志
 
 /**
  * 格式化日期显示
@@ -231,7 +258,7 @@ const formatDate = (dateString) => {
  * 发表评论
  */
 const submitComment = async () => {
-  if (!props.isAuthenticated) {
+  if (!isAuthenticated.value) {
     ElMessage.warning('请先登录')
     return
   }
@@ -278,7 +305,7 @@ const replyToComment = (comment, reply = null) => {
  * 提交回复
  */
 const submitReply = async () => {
-  if (!props.isAuthenticated) {
+  if (!isAuthenticated.value) {
     ElMessage.warning('请先登录')
     return
   }
@@ -315,7 +342,7 @@ const cancelReply = () => {
  * 评论点赞
  */
 const handleCommentLike = async (commentId) => {
-  if (!props.isAuthenticated) {
+  if (!isAuthenticated.value) {
     ElMessage.warning('请先登录')
     return
   }

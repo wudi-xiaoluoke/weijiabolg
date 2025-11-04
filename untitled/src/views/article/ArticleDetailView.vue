@@ -18,7 +18,7 @@
       <div class="article-actions">
         <el-button size="small" @click="handleLike" :type="liked ? 'primary' : ''">
           <el-icon><Star /></el-icon>
-          点赞 ({{ article.likes }})
+          点赞 ({{ article.likes || article.likeCount || 0 }})
         </el-button>
         <el-button size="small" @click="handleFavorite" :type="favorited ? 'success' : ''">
           <el-icon><StarFilled /></el-icon>
@@ -82,7 +82,7 @@ const favorited = ref(false)
         date: articleData.createTime || articleData.createdAt ? formatDate(articleData.createTime || articleData.createdAt) : new Date().toLocaleDateString(),
         category: articleData.category?.name || articleData.category || '未分类',
         views: articleData.viewCount || articleData.views || 0,
-        likes: articleData.likeCount || articleData.likes || 0,
+        likes: articleData.likes || articleData.likeCount || 0,
         content: articleData.content || '<p>暂无内容</p>'
       };
   } catch (error) {

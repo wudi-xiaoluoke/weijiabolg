@@ -40,6 +40,13 @@ export const useSocialStore = defineStore('social', {
       return state.articleLikes.get(articleId) || false
     },
     
+    // 获取文章点赞数
+    getArticleLikeCount: () => (articleId) => {
+      // 这个方法主要用于模板中，实际点赞数应该从文章数据中获取
+      // 这里返回null让模板回退到使用article.likes或article.likeCount
+      return null
+    },
+    
     // 检查文章是否被收藏
     isArticleFavorited: (state) => (articleId) => {
       return state.articleFavorites.get(articleId) || false

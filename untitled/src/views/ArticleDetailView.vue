@@ -78,7 +78,7 @@
                 </span>
                 <span class="stat-item">
                   <el-icon><Thumb /></el-icon>
-                  <span>{{ formatNumber(articleStore.currentArticle.likeCount || 0) }}</span>
+                  <span>{{ formatNumber(articleStore.currentArticle.likes || articleStore.currentArticle.likeCount || 0) }}</span>
                 </span>
               </div>
               

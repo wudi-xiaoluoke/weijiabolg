@@ -35,11 +35,12 @@ public class CommentsController {
      */
     @GetMapping()
     public Result<CommentsListVO> getComments(
+            @RequestHeader("Authorization") String authorization,
             @RequestParam(required = false) Integer articleId,
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer pageSize){
-        ;
-        return Result.ok(commentsService.getComments(articleId,page,pageSize));
+        Integer userId = getuserIdFromToken(authorization);
+        return Result.ok(commentsService.getComments(userId,articleId,page,pageSize));
     }
     //创建评论
     @PostMapping

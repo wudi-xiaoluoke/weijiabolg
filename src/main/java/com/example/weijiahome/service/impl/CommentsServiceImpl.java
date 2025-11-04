@@ -47,7 +47,7 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
      * @param pageSize
      */
     @Override
-    public CommentsListVO getComments(Integer articleId, Integer page, Integer pageSize) {
+    public CommentsListVO getComments(Integer userId,Integer articleId, Integer page, Integer pageSize) {
         //分为三步查询
         //先查寻评论表的数据可能会根据文章id查找
         //查找前拼接一下偏移量 公式为 （page-1） *pageSize
@@ -55,23 +55,26 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
         List<Comments> comments = commentsMapper.getComments(articleId, pageNum, pageSize);
        //创建集合接收对象
         List<CommentsLikeVO> commentsListVOs =new ArrayList<>();
-        CommentsLikeVO commentsLikeVO =new CommentsLikeVO();
+
         //根据评论表数据获得用户id
         for (Comments comment : comments) {
-            Integer userId = comment.getUserId();
-            //查询出用户姓名和头像
-            Users user = usersService.getById(userId);
+            //创建评论对象
+            CommentsLikeVO commentsLikeVO =new CommentsLikeVO();
+            Integer authorId = comment.getUserId();
+            //查询出评论着姓名和头像
+            Users user = usersService.getById(authorId);
             String username = user.getUsername();
             String avatar = user.getAvatar();
 
 
             //在通过用户id查询评论-点赞表，检查出是否存在点赞，若存在则返回true 不存在返回false
             QueryWrapper<CommentLikes> QW = new QueryWrapper<>();
-            QW.eq("user_id",userId);
+            QW.eq("user_id",userId).eq("comment_id",comment.getId());
             CommentLikes one = commentLikesService.getOne(QW);
             //拼装对象
             BeanUtils.copyProperties(comment,commentsLikeVO);
-
+            commentsLikeVO.setLikes(comment.getLikeCount());
+            commentsLikeVO.setCreatedAt(LocalDateTime.now());
             commentsLikeVO.setUserName(username);
             commentsLikeVO.setUserAvatar(avatar);
             if (one == null){
@@ -161,6 +164,29 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
      */
     @Override
     public LikeVO likeComment(Integer id,Integer userId) {
+        //判断登录用户是否已经对该评论点过赞
+        QueryWrapper<CommentLikes> qw =new QueryWrapper<>();
+        qw.eq("user_id",userId);
+        qw.eq("comment_id",id);
+        CommentLikes one = commentLikesService.getOne(qw);
+        if (one !=null){
+            //已经点赞过了，删除评论-点赞表中的记录，并对该评论点赞数减1
+            //先删除评论-点赞表中的记录
+
+            commentLikesService.remove(qw);
+
+            //在将该评论点赞数减1
+            UpdateWrapper<Comments> commentsQueryWrapper = new UpdateWrapper<>();
+            commentsQueryWrapper.eq("id",id)
+                    .ge("like_count", 1);
+            commentsQueryWrapper.setSql("like_count = like_count - 1");
+            commentsMapper.update(null,commentsQueryWrapper);
+            Comments comments1 = commentsMapper.selectById(id);
+            LikeVO LV =new LikeVO();
+            LV.setLikes(comments1.getLikeCount());
+            LV.setLiked(false);
+            return LV;
+        }else {
         //根据评论id对点赞数加一
         UpdateWrapper<Comments> UW =new UpdateWrapper<>();
         UW.eq("id",id);
@@ -178,6 +204,7 @@ public class CommentsServiceImpl extends ServiceImpl<CommentsMapper, Comments> i
         LV.setLikes(comment.getLikeCount());
         LV.setLiked(true);
         return LV;
+        }
     }
 
 

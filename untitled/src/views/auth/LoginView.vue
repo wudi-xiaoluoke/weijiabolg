@@ -265,7 +265,7 @@ document.addEventListener('keypress', (e) => {
 :root {
   --primary-color: #1890ff;
   --primary-hover: #40a9ff;
-  --bg-primary: #f0f2f5;
+  --bg-primary: #f5f7fa;
   --bg-white: #ffffff;
   --text-primary: #303133;
   --text-secondary: #606266;
@@ -289,25 +289,30 @@ document.addEventListener('keypress', (e) => {
   background-color: var(--bg-primary);
   padding: 20px;
   transition: background-color var(--transition-normal);
+  background-image: radial-gradient(circle at top right, rgba(24, 144, 255, 0.05) 0%, transparent 50%),
+                    radial-gradient(circle at bottom left, rgba(24, 144, 255, 0.03) 0%, transparent 50%);
 }
 
 /* 登录卡片 */
 .login-card {
   background-color: var(--bg-white);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--shadow-light);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   padding: 40px;
   width: 100%;
   max-width: 480px;
   transition: all var(--transition-normal);
   position: relative;
   overflow: hidden;
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(10px);
 }
 
 /* 卡片悬停效果 */
 .login-card:hover {
-  box-shadow: var(--shadow-medium);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.22);
   transform: translateY(-2px);
+  border-color: var(--primary-color);
 }
 
 /* 登录头部 */
@@ -357,7 +362,8 @@ document.addEventListener('keypress', (e) => {
   border-radius: var(--border-radius);
   transition: all var(--transition-fast);
   border-color: var(--border-color);
-  background-color: transparent;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
@@ -553,8 +559,14 @@ document.addEventListener('keypress', (e) => {
   --shadow-medium: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
+[data-theme="dark"] .login-page-container {
+  background-image: radial-gradient(circle at top right, rgba(24, 144, 255, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at bottom left, rgba(24, 144, 255, 0.05) 0%, transparent 50%);
+}
+
 [data-theme="dark"] .login-form :deep(.el-input__wrapper) {
   background-color: #2c2c2c;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 [data-theme="dark"] .login-form :deep(.el-input__wrapper.is-focus) {
@@ -563,5 +575,11 @@ document.addEventListener('keypress', (e) => {
 
 [data-theme="dark"] .login-form :deep(.el-checkbox__label) {
   color: var(--text-primary);
+}
+
+[data-theme="dark"] .login-card {
+  border-color: #404040;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
 }
 </style>
