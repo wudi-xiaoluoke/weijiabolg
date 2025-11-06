@@ -3,6 +3,9 @@ package com.example.weijiahome.mapper;
 import com.example.weijiahome.entity.po.Tags;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 /**
  * <p>
@@ -15,4 +18,7 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface TagsMapper extends BaseMapper<Tags> {
 
+    List<Tags> getPopular(Integer limit);
+    @Select("select * from blog.tags ")
+    List<Tags> getTags();
 }

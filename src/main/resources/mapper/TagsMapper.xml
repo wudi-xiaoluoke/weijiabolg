@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.weijiahome.mapper.TagsMapper">
+
+    <!-- 热门标签查询：按使用次数降序（越热门越靠前），取前limit条 -->
+    <select id="getPopular" resultType="com.example.weijiahome.entity.po.Tags">
+        SELECT
+        id, name, create_time AS createTime  <!-- 热门字段use_count -->
+        FROM
+        blog.tags  <!-- 你的标签表名 -->
+        ORDER BY
+        article_count DESC, id ASC  <!-- 核心：按热门维度降序（use_count越大越前），ID升序兜底 -->
+        LIMIT #{limit}  <!-- 只取前N条，无需偏移量 -->
+    </select>
+
+</mapper>

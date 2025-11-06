@@ -29,11 +29,24 @@ export const useTagStore = defineStore('tag', () => {
     try {
       const result = await tagAPI.getTags(params);
       
-      if (result.data) {
-        tags.value = result.data;
-        total.value = result.total || result.data.length;
+      // 处理分页数据结构
+      if (result.records) {
+        // 转换数据字段，将articleCount映射到usageCount
+        tags.value = result.records.map(tag => ({
+          ...tag,
+          usageCount: tag.articleCount,
+          description: tag.description || '',
+          color: tag.color || getDefaultTagColor(tag.id)
+        }));
+        total.value = result.total || result.records.length;
       } else {
-        tags.value = result;
+        // 转换数据字段，将articleCount映射到usageCount
+        tags.value = result.map(tag => ({
+          ...tag,
+          usageCount: tag.articleCount,
+          description: tag.description || '',
+          color: tag.color || getDefaultTagColor(tag.id)
+        }));
         total.value = result.length;
       }
       
@@ -47,6 +60,12 @@ export const useTagStore = defineStore('tag', () => {
     }
   };
   
+  // 根据ID生成默认标签颜色
+  const getDefaultTagColor = (id) => {
+    const colors = ['#f56c6c', '#e6a23c', '#5cb87a', '#1989fa', '#6f7ad3', '#909399'];
+    return colors[id % colors.length];
+  };
+  
   // 获取热门标签
   const fetchPopularTags = async (limit = 10) => {
     loading.value = true;
@@ -55,7 +74,14 @@ export const useTagStore = defineStore('tag', () => {
     try {
       const result = await tagAPI.getPopularTags(limit);
       
-      popularTags.value = result.data || result;
+      let tagsData = result.data || result;
+      // 转换数据字段，将articleCount映射到usageCount
+      popularTags.value = tagsData.map(tag => ({
+        ...tag,
+        usageCount: tag.articleCount,
+        description: tag.description || '',
+        color: tag.color || getDefaultTagColor(tag.id)
+      }));
       return result;
     } catch (err) {
       error.value = err.message || '获取热门标签失败';

@@ -465,15 +465,59 @@ const setDefaultUserData = () => {
 // 加载用户统计信息
 const loadUserStats = async () => {
   try {
-    // 实际项目中这里应该调用API获取统计数据
-    // const statsResponse = await userAPI.getUserStats(profileForm.id)
+    // 首先尝试从用户信息中获取统计数据
+    const currentUser = user.value;
+    console.log('当前用户信息:', currentUser);
     
-    // 模拟数据
-    userStats.articleCount = Math.floor(Math.random() * 50) + 1
-    userStats.commentCount = Math.floor(Math.random() * 200) + 10
-    userStats.favoriteCount = Math.floor(Math.random() * 100) + 5
+    // 如果用户信息中包含统计数据，则使用这些数据
+    if (currentUser) {
+      userStats.articleCount = currentUser.articleCount || 0;
+      userStats.commentCount = currentUser.commentCount || 0;
+      userStats.favoriteCount = currentUser.favoriteCount || 0;
+      console.log('从用户信息中获取统计数据:', userStats);
+    } else {
+      // 如果没有用户信息，设置为0
+      userStats.articleCount = 0;
+      userStats.commentCount = 0;
+      userStats.favoriteCount = 0;
+      console.log('用户信息未获取到，统计数据设置为0');
+    }
+    
+    // 专门从API获取收藏数量
+    try {
+      console.log('开始调用getUserFavorites API');
+      const favoritesResponse = await userAPI.getUserFavorites({ page: 1, pageSize: 1 });
+      console.log('getUserFavorites API响应:', favoritesResponse);
+      
+      // 处理响应数据 - 检查两种可能的数据结构
+      if (favoritesResponse) {
+        // 情况1: 响应可能是直接的数据对象（根据日志显示）
+        if (typeof favoritesResponse.total !== 'undefined') {
+          userStats.favoriteCount = favoritesResponse.total;
+          console.log('情况1: 直接从响应获取total值:', userStats.favoriteCount);
+        }
+        // 情况2: 响应可能包含data字段（标准格式）
+        else if (favoritesResponse.data && typeof favoritesResponse.data.total !== 'undefined') {
+          userStats.favoriteCount = favoritesResponse.data.total;
+          console.log('情况2: 从data字段获取total值:', userStats.favoriteCount);
+        }
+      }
+    } catch (favError) {
+      console.error('获取收藏数量失败:', favError);
+      if (favError.response) {
+        console.log('错误响应:', favError.response.data);
+      }
+    }
+    
+    // 最终验证统计数据
+    console.log('最终统计数据:', userStats);
+    
   } catch (error) {
-    console.error('加载用户统计信息失败:', error)
+    console.error('加载用户统计信息失败:', error);
+    // 出错时设置为0
+    userStats.articleCount = 0;
+    userStats.commentCount = 0;
+    userStats.favoriteCount = 0;
   }
 }
 

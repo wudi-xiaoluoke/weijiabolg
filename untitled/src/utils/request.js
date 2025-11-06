@@ -17,9 +17,19 @@ service.interceptors.request.use(
     config => {
       // 从本地存储获取token
       const token = getToken()
+      console.log('Request interceptor called')
+      console.log('Request URL:', config.url)
+      console.log('Request method:', config.method)
+      console.log('Request baseURL:', config.baseURL)
+      console.log('Request full URL:', config.baseURL + config.url)
+      
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`
+        console.log('Authorization header set')
+      } else {
+        console.log('No token available')
       }
+      
       return config
     },
     error => {
@@ -31,12 +41,20 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
     response => {
+      console.log('✅ 收到响应：', response.config.url)
+      console.log('✅ 响应状态码：', response.status)
+      console.log('✅ 响应数据：', response.data)
       const res = response.data
       // 直接返回响应数据（后端返回格式：{ code: 200, data: ... } 或 { status: "SUCCESS", data: ... }）
       return res
     },
     error => {
+      console.error('❌ 请求失败：', error.config?.url || '未知URL')
+      console.error('❌ 错误详情：', error)
+      
       if (error.response) {
+        console.error('❌ 响应错误状态码：', error.response.status)
+        console.error('❌ 响应错误数据：', error.response.data)
         const { status, data } = error.response
 
         switch (status) {

@@ -3,7 +3,7 @@ import request from '../../utils/request'
 // 用户登录
 export function login(data) {
   return request({
-    url: '/users/login',
+    url: '/api/users/login',
     method: 'post',
     data
   })
@@ -12,7 +12,7 @@ export function login(data) {
 // 用户注册
 export function register(data) {
   return request({
-    url: '/auth/register',
+    url: '/api/users/register',
     method: 'post',
     data
   })
@@ -21,7 +21,7 @@ export function register(data) {
 // 获取用户信息
 export function getProfile() {
   return request({
-    url: '/users/me',
+    url: '/api/users/me',
     method: 'get'
   })
 }
@@ -29,7 +29,7 @@ export function getProfile() {
 // 获取用户信息（根据用户功能模块文档）
 export function getUserInfo() {
   return request({
-    url: '/users/me',
+    url: '/api/users/me',
     method: 'get'
   })
 }
@@ -37,7 +37,7 @@ export function getUserInfo() {
 // 更新用户信息
 export function updateProfile(data) {
   return request({
-    url: '/users/me',
+    url: '/api/users/me',
     method: 'put',
     data
   })
@@ -46,7 +46,7 @@ export function updateProfile(data) {
 // 更新密码
 export function updatePassword(data) {
   return request({
-    url: '/auth/password',
+    url: '/api/users/me/password',
     method: 'put',
     data
   })
@@ -54,16 +54,14 @@ export function updatePassword(data) {
 
 // 登出
 export function logout() {
-  return request({
-    url: '/auth/logout',
-    method: 'post'
-  })
+  // 登出功能由前端处理
+  return Promise.resolve({ status: 'SUCCESS' });
 }
 
 // 发送重置密码链接
 export function sendResetPasswordLink(data) {
   return request({
-    url: '/auth/forgot-password',
+    url: '/api/users/forgot-password',
     method: 'post',
     data
   })
@@ -72,7 +70,7 @@ export function sendResetPasswordLink(data) {
 // 重置密码
 export function resetPassword(data) {
   return request({
-    url: '/auth/reset-password',
+    url: '/api/users/reset-password',
     method: 'post',
     data
   })

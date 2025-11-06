@@ -2,10 +2,11 @@ import request from '../../utils/request'
 
 /**
  * 获取标签列表
+ * @param {Object} params - 查询参数
  * @returns {Promise}
  */
-export const getTags = () => {
-  return request.get('/tags')
+export const getTags = (params = {}) => {
+  return request.get('/api/tags', { params })
 }
 
 /**
@@ -14,7 +15,7 @@ export const getTags = () => {
  * @returns {Promise}
  */
 export const getTagById = (id) => {
-  return request.get(`/tags/${id}`)
+  return request.get(`/api/tags/${id}`)
 }
 
 /**
@@ -24,7 +25,7 @@ export const getTagById = (id) => {
  * @returns {Promise}
  */
 export const createTag = (data) => {
-  return request.post('/tags', data)
+  return request.post('/api/tags', data)
 }
 
 /**
@@ -54,4 +55,13 @@ export const deleteTag = (id) => {
  */
 export const getArticlesByTag = (id, params = {}) => {
   return request.get(`/api/tags/${id}/articles`, { params })
+}
+
+/**
+ * 获取热门标签
+ * @param {number} limit - 数量限制
+ * @returns {Promise}
+ */
+export const getPopularTags = (limit = 10) => {
+  return request.get('/api/tags/popular', { params: { limit } })
 }

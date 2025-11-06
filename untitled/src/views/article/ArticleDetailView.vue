@@ -20,9 +20,9 @@
           <el-icon><Star /></el-icon>
           点赞 ({{ article.likes || article.likeCount || 0 }})
         </el-button>
-        <el-button size="small" @click="handleFavorite" :type="favorited ? 'success' : ''">
+        <el-button size="small" @click="handleFavorite" :type="favorited ? 'success' : ''" :loading="favoriteLoading" :disabled="favoriteLoading">
           <el-icon><StarFilled /></el-icon>
-          收藏
+          {{ favorited ? '已收藏' : '收藏' }}
         </el-button>
         <el-button size="small" @click="handleShare">
           <el-icon><Share /></el-icon>
@@ -41,12 +41,13 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft, Star, StarFilled, Share, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import ArticleComments from '../../components/ArticleComments.vue'
 import { articleAPI } from '../../api/index.js'
+import { useSocialStore } from '../../store/modules/social.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -64,7 +65,15 @@ const article = ref({
   content: ''
 })
 const liked = ref(false)
-const favorited = ref(false)
+const loading = ref(false)
+const error = ref(null)
+
+// 使用 social store
+const socialStore = useSocialStore()
+
+// 计算属性获取收藏状态
+const favorited = computed(() => socialStore.isArticleFavorited(articleId))
+const favoriteLoading = computed(() => socialStore.favoriteLoading)
 
 // 从后端获取文章数据
   const fetchArticleDetail = async () => {
@@ -114,9 +123,23 @@ const formatDate = (dateString) => {
   });
 };
 
+// 获取文章收藏状态
+const fetchFavoriteStatus = async () => {
+  try {
+    console.log('获取文章收藏状态，文章ID:', articleId)
+    await socialStore.fetchArticleFavoriteStatus(articleId)
+    console.log('获取文章收藏状态成功')
+  } catch (err) {
+    console.error('获取文章收藏状态失败:', err)
+    // 静默失败，不影响用户浏览
+  }
+}
+
 // 生命周期钩子
-onMounted(() => {
-  fetchArticleDetail();
+onMounted(async () => {
+  await fetchArticleDetail()
+  // 获取文章收藏状态
+  fetchFavoriteStatus()
 })
 
 // 方法
@@ -135,13 +158,35 @@ const handleLike = () => {
   liked.value = !liked.value
 }
 
-const handleFavorite = () => {
-  if (favorited.value) {
-    ElMessage.info('已取消收藏')
-  } else {
-    ElMessage.success('收藏成功')
+const handleFavorite = async () => {
+  try {
+    console.log('收藏按钮点击，文章ID:', articleId, '当前状态:', favorited.value)
+    
+    if (favorited.value) {
+      // 取消收藏
+      await socialStore.unfavoriteArticle(articleId)
+      ElMessage.success('取消收藏成功')
+    } else {
+      // 添加收藏
+      await socialStore.favoriteArticle(articleId)
+      ElMessage.success('收藏成功')
+    }
+    
+    console.log('收藏操作完成')
+  } catch (err) {
+    console.error('收藏操作失败:', err)
+    
+    // 根据错误类型显示不同的提示
+    if (err.code === 'UNAUTHORIZED') {
+      ElMessage.warning('请先登录')
+      // 可以重定向到登录页面
+      // router.push('/auth/login')
+    } else if (err.code === 'PERMISSION_DENIED') {
+      ElMessage.error('没有权限进行收藏操作')
+    } else {
+      ElMessage.error(err.message || '操作失败，请稍后重试')
+    }
   }
-  favorited.value = !favorited.value
 }
 
 const handleShare = () => {

@@ -16,15 +16,19 @@ const userAPI = {
       'Content-Type': 'multipart/form-data'
     }
   }),
-  getUserProfile: (id) => request.get(`/api/users/${id}`)
+  getUserProfile: (id) => request.get(`/api/users/${id}`),
+  // 获取用户收藏列表
+  getUserFavorites: (params) => request.get('/api/users/favorites', { params }),
+  // 获取用户点赞列表
+  getUserLikes: (params) => request.get('/api/users/likes', { params })
 };
 
 const articleAPI = {
-  getArticles: (params) => request.get('/articles', { params }),
-  getArticleById: (id) => request.get(`/articles/${id}`),
-  createArticle: (data) => request.post('/articles', data),
-  updateArticle: (id, data) => request.put(`/articles/${id}`, data),
-  deleteArticle: (id) => request.delete(`/articles/${id}`)
+  getArticles: (params) => request.get('/api/articles', { params }),
+  getArticleById: (id) => request.get(`/api/articles/${id}`),
+  createArticle: (data) => request.post('/api/articles', data),
+  updateArticle: (id, data) => request.put(`/api/articles/${id}`, data),
+  deleteArticle: (id) => request.delete(`/api/articles/${id}`)
 };
 
 const categoryAPI = {
@@ -49,7 +53,7 @@ const tagAPI = {
   createTag: (data) => request.post('/api/tags', data),
   updateTag: (id, data) => request.put(`/api/tags/${id}`, data),
   deleteTag: (id) => request.delete(`/api/tags/${id}`),
-  getPopularTags: (params) => request.get('/api/tags/popular', { params }),
+  getPopularTags: (limit = 10) => request.get('/api/tags/popular', { params: { limit } }),
   batchCreateTags: (data) => request.post('/api/tags/batch', data),
   batchDeleteTags: (data) => request.delete('/api/tags/batch', { data }),
   searchTags: (params) => request.get('/api/tags/search', { params }),

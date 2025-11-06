@@ -82,6 +82,8 @@ export const useSocialStore = defineStore('social', {
     // 检查认证状态
     checkAuth() {
       const authStore = useAuthStore()
+      // authStore使用的是函数式API，需要使用.value访问响应式值
+      console.log('Authentication status:', authStore.isAuthenticated)
       if (!authStore.isAuthenticated) {
         const error = new Error('用户未登录')
         error.code = 'UNAUTHORIZED'
@@ -118,21 +120,20 @@ export const useSocialStore = defineStore('social', {
 
     // 收藏文章
     async favoriteArticle(articleId) {
+      console.log('socialStore.favoriteArticle called with articleId:', articleId)
       this.favoriteLoading = true
       this.favoriteError = null
       try {
         // 检查认证状态
+        console.log('Checking authentication...')
         this.checkAuth()
         
-        // 检查是否有操作权限
-        const authStore = useAuthStore()
-        if (!authStore.hasPermission('favorite_content') && !authStore.isAdmin) {
-          const error = new Error('没有权限进行收藏操作')
-          error.code = 'PERMISSION_DENIED'
-          throw error
-        }
+        // 简化权限检查，只要登录就可以收藏
+        console.log('User authenticated, proceeding with favorite operation')
         
+        console.log('Calling socialAPI.favoriteArticle...')
         await socialAPI.favoriteArticle(articleId)
+        console.log('socialAPI.favoriteArticle call successful')
         this.articleFavorites.set(articleId, true)
       } catch (error) {
         this.favoriteError = error.message || '收藏失败'
@@ -145,13 +146,20 @@ export const useSocialStore = defineStore('social', {
 
     // 取消收藏文章
     async unfavoriteArticle(articleId) {
+      console.log('socialStore.unfavoriteArticle called with articleId:', articleId)
       this.favoriteLoading = true
       this.favoriteError = null
       try {
         // 检查认证状态
+        console.log('Checking authentication...')
         this.checkAuth()
         
+        // 简化权限检查，只要登录就可以取消收藏
+        console.log('User authenticated, proceeding with unfavorite operation')
+        
+        console.log('Calling socialAPI.unfavoriteArticle...')
         await socialAPI.unfavoriteArticle(articleId)
+        console.log('socialAPI.unfavoriteArticle call successful')
         this.articleFavorites.set(articleId, false)
       } catch (error) {
         this.favoriteError = error.message || '取消收藏失败'
@@ -222,12 +230,38 @@ export const useSocialStore = defineStore('social', {
 
     // 获取文章收藏状态
     async fetchArticleFavoriteStatus(articleId) {
+      console.log('fetchArticleFavoriteStatus called with articleId:', articleId)
       try {
+        const authStore = useAuthStore()
+        // 只有登录用户才需要检查收藏状态
+        console.log('Checking if user is authenticated:', authStore.isAuthenticated)
+        if (!authStore.isAuthenticated) {
+          console.log('User not authenticated, setting favorite status to false')
+          this.articleFavorites.set(articleId, false)
+          return false
+        }
+        
+        console.log('Calling socialAPI.getArticleFavoriteStatus...')
         const response = await socialAPI.getArticleFavoriteStatus(articleId)
-        this.articleFavorites.set(articleId, response.data.isFavorited)
-        return response.data.isFavorited
+        console.log('API response:', response)
+        // 正确处理不同格式的响应，特别处理data为false的情况
+        let isFavorited = false
+        if (response?.data !== undefined) {
+          // 优先检查data对象中的isFavorited属性
+          if (response.data.isFavorited !== undefined) {
+            isFavorited = response.data.isFavorited
+          } else {
+            // 如果data不是对象，直接使用data值
+            isFavorited = response.data
+          }
+        }
+        console.log('Parsed favorite status:', isFavorited)
+        this.articleFavorites.set(articleId, Boolean(isFavorited))
+        return Boolean(isFavorited)
       } catch (error) {
         console.error('获取文章收藏状态失败:', error)
+        // 出错时默认设置为未收藏
+        this.articleFavorites.set(articleId, false)
         return false
       }
     },

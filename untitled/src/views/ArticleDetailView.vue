@@ -133,7 +133,7 @@
                 <button
                   class="action-button"
                   :class="{ 'active': isFavorited }"
-                  @click="handleFavorite"
+                  @click="() => { alert('收藏按钮被点击！'); console.log('收藏按钮被点击，时间戳:', Date.now()); handleFavorite(); }"
                   :disabled="isFavoriting"
                 >
                   <el-icon><Star /></el-icon>
@@ -383,23 +383,63 @@ const handleLike = async () => {
  * 文章收藏
  */
 const handleFavorite = async () => {
+  console.log('🔄 handleFavorite函数开始执行，时间戳:', Date.now())
+  
+  // 验证函数被调用
+  console.log('✅ 函数已被调用，验证点1通过')
+  
+  // 检查authStore是否存在且可访问
+  console.log('🔍 authStore是否存在:', !!authStore)
+  console.log('🔍 authStore.isAuthenticated值:', authStore.isAuthenticated)
+  
   // 检查是否登录
   if (!authStore.isAuthenticated) {
+    console.log('⚠️ 用户未登录，将跳转到登录页')
     toLogin()
+    console.log('📱 已调用toLogin()函数')
     return
   }
   
+  console.log('✅ 用户已登录，验证点2通过')
+  
+  // 检查route对象和参数
+  console.log('🔍 route对象是否存在:', !!route)
+  console.log('🔍 route.params.id值:', route.params.id)
+  console.log('🔍 文章ID类型:', typeof route.params.id)
+  
+  // 检查isFavorited引用
+  console.log('🔍 isFavorited引用是否存在:', !!isFavorited)
+  console.log('🔍 当前收藏状态:', isFavorited.value)
+  
   try {
+    // 设置加载状态
+    console.log('🔄 设置isFavoriting为true')
+    isFavoriting.value = true
+    
     if (isFavorited.value) {
+      console.log('🔄 准备取消收藏操作')
+      console.log('📞 调用socialStore.unfavoriteArticle，文章ID:', route.params.id)
       await socialStore.unfavoriteArticle(route.params.id)
+      console.log('✅ 取消收藏操作成功完成')
       ElMessage.success('取消收藏成功')
+      console.log('✅ 取消收藏消息已显示')
     } else {
+      console.log('🔄 准备收藏操作')
+      console.log('📞 调用socialStore.favoriteArticle，文章ID:', route.params.id)
       await socialStore.favoriteArticle(route.params.id)
+      console.log('✅ 收藏操作成功完成')
       ElMessage.success('收藏成功')
+      console.log('✅ 收藏消息已显示')
     }
   } catch (error) {
-    console.error('收藏失败:', error)
+    console.error('❌ 收藏操作失败:', error)
+    console.error('❌ 错误详情:', JSON.stringify(error, null, 2))
     ElMessage.error('操作失败，请稍后重试')
+    console.log('✅ 错误消息已显示')
+  } finally {
+    console.log('🔄 重置加载状态，设置isFavoriting为false')
+    isFavoriting.value = false
+    console.log('✅ 函数执行完成，时间戳:', Date.now())
   }
 }
 
