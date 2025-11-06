@@ -1,15 +1,23 @@
 package com.example.weijiahome.controller;
 
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.weijiahome.config.AliyunOssProperties;
 import com.example.weijiahome.entity.dto.UsersDTO;
+import com.example.weijiahome.entity.po.ArticleLikes;
 import com.example.weijiahome.entity.po.Result;
+import com.example.weijiahome.entity.po.UserFollow;
 import com.example.weijiahome.entity.po.Users;
+import com.example.weijiahome.entity.vo.ArticleLikeListVO;
+import com.example.weijiahome.entity.vo.ArticleVO;
+import com.example.weijiahome.entity.vo.PageFollowerVO;
+import com.example.weijiahome.entity.vo.UsersFollowVO;
+import com.example.weijiahome.entity.vo.favorites.UserFavoritesVO;
 import com.example.weijiahome.service.IUsersService;
 import com.example.weijiahome.utils.JwtUtil;
 import com.example.weijiahome.utils.PasswordUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -111,5 +119,69 @@ public class UsersController {
 
             String userId = jwtUtil.getUserIdFromToken(token);
             return Integer.parseInt(userId);
+    }
+    /**
+     * 关注指定Id的用户
+     */
+    @PostMapping("/{id}/follow")
+    public Result<UsersFollowVO> followUser(@RequestHeader("Authorization") String authHeader,
+                                            @PathVariable(value = "id")Integer id){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.followUser(userId,id));
+    }
+    /**
+     * 取消关注用户
+     */
+    @PostMapping("/{id}/unfollow")
+    public Result<UsersFollowVO> unfollowUser(@RequestHeader("Authorization") String authHeader,
+                                              @PathVariable(value = "id")Integer id){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.unfollowUser(userId,id));
+    }
+    /**
+     * 获取当前用户对指定ID用户的关注状态
+     */
+    @GetMapping("/{id}/follow/status")
+    public Result<Boolean> followStatus(@RequestHeader("Authorization") String authHeader,
+                                        @PathVariable(value = "id")Integer id){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.followStatus(id,userId));
+    }
+    /**
+     * 获取指定ID用户的粉丝列表
+     */
+    @GetMapping("/{id}/followes")
+    public Result<PageFollowerVO> followesList(@PathVariable(value = "id")Integer id,
+                                               @RequestParam(value = "page",defaultValue = "1")Integer page,
+                                               @RequestParam(value = "pageSize",defaultValue = "10")Integer pageSize,
+                                               @RequestHeader("Authorization") String authHeader){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.followesList(id,page,pageSize,userId));
+    }
+    /**
+     * 获取当前用户的收藏文章列表
+     */
+    @GetMapping("/favorites")
+    public Result<IPage<UserFavoritesVO>> favoritesUser(@RequestHeader("Authorization") String authHeader,
+                                                        @RequestParam(value = "page",defaultValue = "1")Integer page,
+                                                        @RequestParam(value = "pageSize",defaultValue = "10")Integer pageSize){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.favoritesUser(userId,page,pageSize));
+    }
+    /**
+     * 获取当前用户点赞文章列表
+     */
+    @GetMapping("/likes")
+    public Result<IPage<ArticleLikeListVO>> userLikeArticles(@RequestHeader("Authorization") String authHeader,
+                                                             @RequestParam(value = "page",defaultValue = "1")Integer page,
+                                                             @RequestParam(value = "pageSize",defaultValue = "10")Integer pageSize){
+        //获取当前登录的用户id
+        Integer userId = getuserIdFromToken(authHeader);
+        return Result.ok(usersService.userLikeArticles(userId,page,pageSize));
     }
 }

@@ -5,16 +5,10 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.example.weijiahome.entity.dto.CreatArticlesDTO;
 import com.example.weijiahome.entity.dto.GetArticlesDTO;
 import com.example.weijiahome.entity.po.*;
-import com.example.weijiahome.entity.vo.ArticleVO;
+import com.example.weijiahome.entity.vo.*;
 import com.example.weijiahome.entity.po.Result;
-import com.example.weijiahome.entity.vo.LikedVO;
-import com.example.weijiahome.entity.vo.PageResultVO;
 import com.example.weijiahome.mapper.UsersMapper;
-import com.example.weijiahome.service.IArticleCategoriesService;
-import com.example.weijiahome.service.IArticleTagsService;
-import com.example.weijiahome.service.IArticlesService;
-import com.example.weijiahome.service.ICommentLikesService;
-import com.example.weijiahome.service.ICategoriesService;
+import com.example.weijiahome.service.*;
 import com.example.weijiahome.utils.JwtUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +16,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <p>
@@ -33,7 +29,7 @@ import java.util.List;
  * @since 2025-10-12
  */
 @RestController
-@RequestMapping("/articles")
+@RequestMapping("/api/articles")
 public class ArticlesController {
     @Autowired
     private ICommentLikesService commentLikesService;
@@ -49,6 +45,10 @@ public class ArticlesController {
     private UsersMapper usersMapper;
     @Autowired
     private JwtUtil jwtUtil;
+    @Autowired
+    private IArticleLikesService articleLikesService;
+    @Autowired
+    private IArticleFavoritesService articleFavoritesService;
 
     /**
      * 获取文章列表
@@ -207,15 +207,14 @@ public class ArticlesController {
                                      @RequestHeader ("Authorization") String authorization){
         //获取用户id
         Integer userId = getuserIdFromToken(authorization);
+        //执行更改点赞状态
         Integer i = articlesService.LikeCount(id, liked);
         LikedVO likedvo = new LikedVO();
         likedvo.setLikes(i);
         likedvo.setIsLiked(liked);
-        if (liked){
-            commentLikesService.saveCommentLikes(userId,id);
-        }else {
-            commentLikesService.deleteCommentLikes(userId,id);
-        }
+        //在用户的文章点赞表中进行增减
+        articlesService.saveArticlesLikes(userId,id,liked);
+        //返回文章的点赞结果
         return Result.ok(likedvo);
     }
 
@@ -232,5 +231,55 @@ public class ArticlesController {
 
         String userId = jwtUtil.getUserIdFromToken(token);
         return Integer.parseInt(userId);
+    }
+    /**
+     * 获取指定Id文章的当前用户点赞状态
+     */
+    @GetMapping("/{id}/like/status")
+    public  Result getArticlesLike(@PathVariable(value = "id")Integer id,
+                                   @RequestHeader ("Authorization") String authorization){
+        //获取用户id
+        Integer userId = getuserIdFromToken(authorization);
+
+        return Result.ok(articlesService.getArticlesLike(id,userId));
+    }
+    /**
+     *收藏指定ID的文章
+     */
+    @PostMapping("/{id}/favorite")
+    public Result<FavoriteVO> favoriteArticles(@PathVariable(value = "id")Integer id,
+                                               @RequestHeader ("Authorization") String authorization){
+        //获取用户id
+        Integer userId = getuserIdFromToken(authorization);
+        return Result.ok(articleFavoritesService.favoriteArticles(id,userId));
+    }
+    /**
+     * 取消收藏指定Id的文章
+     */
+    @PostMapping("/{id}/unfavorite")
+    public Result<FavoriteVO> notFavoriteArticles(@PathVariable(value = "id")Integer id,
+                                                  @RequestHeader ("Authorization") String authorization){
+        //获取用户Id
+        Integer userId = getuserIdFromToken(authorization);
+        return Result.ok(articleFavoritesService.notFavoriteArticles(id,userId));
+    }
+    /**
+     * 获取指定的ID文章的当前用户收藏状态
+     */
+    @GetMapping("/{id}/favorite/status")
+    public Result articleFavoriteStatus(@PathVariable(value = "id")Integer id,
+                                        @RequestHeader ("Authorization") String authorization){
+        //获取用户ID
+        Integer userId = getuserIdFromToken(authorization);
+        return Result.ok(articleFavoritesService.articleFavoriteStatus(id,userId));
+    }
+    /**
+     *分享文章
+     */
+    @PostMapping("/share")
+    public Result<ArticleShareVO> articleShare(@RequestBody Map<String, Object> requestBody){
+        Integer articleId = (Integer) requestBody.get("articleId");
+        String platform = (String) requestBody.get("platform");
+        return Result.ok(articlesService.articleShare(articleId, platform));
     }
 }

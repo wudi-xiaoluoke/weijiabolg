@@ -1,5 +1,6 @@
 package com.example.weijiahome.entity.po;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.IdType;
 import java.time.LocalDateTime;
@@ -90,6 +91,10 @@ public class Articles implements Serializable {
      * 发布时间
      */
     private LocalDateTime publishTime;
+    @TableField("share_count")
+    private Integer shareCount; // 分享总次数
+    @TableField("share_code")
+    private String shareCode; // 唯一分享码（用于拼接链接）
 
 
 }

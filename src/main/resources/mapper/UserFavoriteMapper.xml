@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.weijiahome.mapper.ArticleFavoritesMapper">
+
+    <!-- 收藏列表分页查询（关联文章-分类中间表） -->
+    <select id="selectUserFavoritesPage" resultMap="UserFavoriteResultMap" parameterType="java.util.Map" >
+        SELECT
+            uf.id AS favorite_id,  -- 收藏记录ID
+            a.id AS article_id,    -- 文章ID
+            a.title,               -- 文章标题
+            a.summary,             -- 文章摘要
+            a.view_count,               -- 文章阅读量
+            a.like_count,               -- 文章点赞数
+            a.create_time AS createdAt,  -- 文章创建时间
+            c.id AS category_id,   -- 分类ID
+            c.name AS category_name    -- 分类名称
+        FROM blog.article_favorites uf
+                 LEFT JOIN blog.articles a ON uf.article_id = a.id
+            -- 关联文章-分类中间表
+                 LEFT JOIN blog.article_categories ac ON a.id = ac.article_id
+                 LEFT JOIN blog.categories c ON ac.category_id = c.id
+        WHERE uf.user_id = #{userId}  -- 当前用户ID
+    </select>
+
+    <!-- 结果集映射（对应VO结构） -->
+    <resultMap id="UserFavoriteResultMap" type="com.example.weijiahome.entity.vo.favorites.UserFavoritesVO">
+        <id property="id" column="favorite_id"/>
+        <result property="title" column="title"/>
+        <result property="summary" column="summary"/>
+        <result property="views" column="view_count"/>
+        <result property="likes" column="like_count"/>
+        <result property="createdAt" column="createdAt"/>
+        <!-- 嵌套分类对象 -->
+        <association property="category" javaType="com.example.weijiahome.entity.vo.favorites.CategoryVO">
+            <result property="id" column="category_id"/>
+            <result property="name" column="category_name"/>
+        </association>
+    </resultMap>
+    <!-- 收藏列表总数查询 -->
+    <select id="countUserFavorites" resultType="java.lang.Integer">
+        SELECT COUNT(1)
+        FROM blog.article_favorites uf
+                 LEFT JOIN blog.articles a ON uf.article_id = a.id
+                 LEFT JOIN blog.article_categories ac ON a.id = ac.article_id
+                 LEFT JOIN blog.categories c ON ac.category_id = c.id
+        WHERE uf.user_id = #{userId}
+    </select>
+
+</mapper>

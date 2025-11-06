@@ -6,20 +6,21 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.weijiahome.entity.dto.CreatArticlesDTO;
 import com.example.weijiahome.entity.dto.GetArticlesDTO;
 import com.example.weijiahome.entity.po.*;
+import com.example.weijiahome.entity.vo.ArticleShareVO;
 import com.example.weijiahome.entity.vo.ArticleVO;
 import com.example.weijiahome.entity.vo.PageResultVO;
 import com.example.weijiahome.entity.vo.PaginationVO;
+import com.example.weijiahome.exception.BusinessException;
 import com.example.weijiahome.mapper.*;
-import com.example.weijiahome.service.IArticleCategoriesService;
-import com.example.weijiahome.service.IArticleTagsService;
-import com.example.weijiahome.service.IArticlesService;
+import com.example.weijiahome.service.*;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.example.weijiahome.service.ICategoriesService;
+import com.example.weijiahome.utils.ShareCodeUtil;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,6 +51,10 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
     private IArticleTagsService articleTagsService;
     @Autowired
     private ICategoriesService categoriesService;
+    @Autowired
+    private IArticleLikesService articleLikesService;
+    @Autowired
+    private ArticleLikesMapper articleLikesMapper;
     /**
      * 根据条件查询文章
      * @param articlesDTO
@@ -189,5 +194,81 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
 
         // 6. 返回更新后的文章（重新查询一次数据库获取最新数据）
         return articlesMapper.selectById(id);
+    }
+
+    /**
+     * 获取指定ID文章的当前用户点赞状态
+     * @param id
+     * @param userId
+     */
+    @Override
+    public boolean getArticlesLike(Integer id, Integer userId) {
+        //根据文章id和用户id查找是否存在点赞数据
+        QueryWrapper<ArticleLikes> queryWrapper =new QueryWrapper<>();
+        queryWrapper.eq("user_id",userId)
+                    .eq("article_id",id);
+        ArticleLikes one = articleLikesService.getOne(queryWrapper);
+        if (one !=null){
+            return true;
+        }else {
+            return false;
+        }
+    }
+
+    /**
+     * 文章点赞
+     * @param userId
+     * @param id
+     */
+    @Override
+    public void saveArticlesLikes(Integer userId, Integer id,boolean liked) {
+        ArticleLikes Cl = new ArticleLikes();
+        Cl.setUserId(userId);
+        Cl.setArticleId(id);
+        Cl.setCreatedAt(LocalDateTime.now());
+        if (liked){
+            articleLikesMapper.insert(Cl);
+        }else {
+            QueryWrapper<ArticleLikes> qw =new QueryWrapper<>();
+            qw.eq("user_id",userId);
+            qw.eq("article_id",id);
+            articleLikesMapper.delete(qw);
+        }
+
+    }
+
+    /**
+     * 分享文章
+     * @param articleId
+     * @param platform
+     */
+    @Override
+    public ArticleShareVO articleShare(Integer articleId, String platform) {
+        // 1. 校验文章是否存在
+        Articles articles = articlesMapper.selectById(articleId);
+        if (articles == null) {
+            throw new BusinessException("文章不存在");
+        }
+
+        // 2. 生成/复用分享码（已存在则直接用，避免重复生成）
+        String shareCode = articles.getShareCode();
+        if (shareCode == null || shareCode.isEmpty()) {
+            shareCode = ShareCodeUtil.generateShareCode();
+            articles.setShareCode(shareCode); // 保存分享码到文章
+        }
+
+        // 3. 累加分享次数（不管哪个平台分享，都计入总次数）
+        articles.setShareCount(articles.getShareCount() + 1);
+        this.updateById(articles); // 更新文章信息
+
+        // 4. 拼接分享链接（替换为你的真实域名）
+        String baseUrl = "http://localhost:3000/article";; // 前端分享页面域名
+        String shareUrl = baseUrl + "/" + shareCode; // 最终分享链接
+
+        // 5. 封装响应结果
+        ArticleShareVO vo = new ArticleShareVO();
+        vo.setShareUrl(shareUrl);
+        vo.setShareCount(articles.getShareCount()); // 返回更新后的总分享次数
+        return vo;
     }
 }
