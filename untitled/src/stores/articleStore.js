@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { articleAPI } from '../api';
+import { getArticles, getArticleById, createArticle, updateArticle, deleteArticle, publishArticle, unpublishArticle, toggleHotArticle, toggleFeaturedArticle, getAuthorArticles } from '../api/modules/article';
 
 export const useArticleStore = defineStore('article', () => {
   // 状态
@@ -32,7 +32,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const result = await articleAPI.getArticles(params);
+      const result = await getArticles(params);
       
       // 适配API返回的数据结构
       if (result.data) {
@@ -63,7 +63,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const result = await articleAPI.getArticleById(id);
+      const result = await getArticleById(id);
       currentArticle.value = result;
       return currentArticle.value;
     } catch (err) {
@@ -81,7 +81,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const newArticle = await articleAPI.createArticle(articleData);
+      const newArticle = await createArticle(articleData);
       
       // 更新本地状态
       articles.value.unshift(newArticle);
@@ -104,7 +104,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const updatedArticle = await articleAPI.updateArticle(id, articleData);
+      const updatedArticle = await updateArticle(id, articleData);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -132,7 +132,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const result = await articleAPI.deleteArticle(id);
+      const result = await deleteArticle(id);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -161,7 +161,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const publishedArticle = await articleAPI.publishArticle(id);
+      const publishedArticle = await publishArticle(id);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -189,7 +189,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const unpublishedArticle = await articleAPI.unpublishArticle(id);
+      const unpublishedArticle = await unpublishArticle(id);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -217,7 +217,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const updatedArticle = await articleAPI.toggleHotArticle(id);
+      const updatedArticle = await toggleHotArticle(id);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -245,7 +245,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const updatedArticle = await articleAPI.toggleFeaturedArticle(id);
+      const updatedArticle = await toggleFeaturedArticle(id);
       
       // 更新本地状态
       const index = articles.value.findIndex(article => article.id === id);
@@ -273,7 +273,7 @@ export const useArticleStore = defineStore('article', () => {
     error.value = null;
     
     try {
-      const result = await articleAPI.getAuthorArticles(authorId, params);
+      const result = await getAuthorArticles(authorId, params);
       
       // 适配API返回的数据结构
       if (result.data) {

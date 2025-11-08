@@ -13,4 +13,36 @@
         </where>
         limit #{pageNum},#{pageSize}
     </select>
+    <!-- 查询普通用户拥有的父评论ID -->
+    <select id="selectOwnParentCommentIds" resultType="java.lang.Integer">
+        SELECT id
+        FROM blog.comments
+        WHERE id IN
+        <foreach collection="parentIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND user_id = #{userId}  <!-- 假设创建人ID字段为create_user_id -->
+        AND isdelete = 0             <!-- 只查询未删除的评论 -->
+    </select>
+    <!-- 根据父评论ID查询子评论ID -->
+    <select id="selectChildCommentIdsByParentIds" resultType="java.lang.Integer">
+        SELECT id
+        FROM blog.comments
+        WHERE parent_id IN
+        <foreach collection="parentIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND isdelete = 0  <!-- 只查询未删除的子评论 -->
+    </select>
+    <!-- 逻辑删除评论（批量） -->
+    <update id="logicDeleteComments">
+        UPDATE blog.comments
+        SET isdelete = 1,
+        deleted_at = NOW()  <!-- 可选：更新修改时间 -->
+        WHERE id IN
+        <foreach collection="commentIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND isdelete = 0  <!-- 避免重复删除 -->
+    </update>
 </mapper>

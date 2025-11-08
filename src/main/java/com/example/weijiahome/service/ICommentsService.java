@@ -2,10 +2,9 @@ package com.example.weijiahome.service;
 
 import com.example.weijiahome.entity.po.Comments;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.example.weijiahome.entity.vo.CommentsLikeVO;
-import com.example.weijiahome.entity.vo.CommentsListVO;
-import com.example.weijiahome.entity.vo.LikeVO;
-import com.example.weijiahome.entity.vo.SaveCommentVO;
+import com.example.weijiahome.entity.vo.*;
+
+import java.util.List;
 
 /**
  * <p>
@@ -24,4 +23,18 @@ public interface ICommentsService extends IService<Comments> {
     void cleanComments(Integer id);
 
     LikeVO likeComment(Integer id,Integer userId);
+
+    CommentsLikeVO getIDComment(Integer id, Integer userID);
+
+    CommentUpdateVO updateComment(Integer id, String content);
+
+    int  deleteComments(Integer userId, List<Integer> ids);
+
+    LikeVO unLikeById(Integer id, Integer userId);
+
+    CommentsStatsVO statsComments(Integer id);
+
+    List<CommentsLikeVO> popularComments(Integer limit, Integer articleId);
+
+    CommentRecentVO recentComments(Integer limit, Integer articleId);
 }

@@ -1,8 +1,7 @@
 // API配置文件
 
 // API基础URL
-// 根据后端API文档，有些端点使用/api/前缀，有些不使用
-// 为了兼容不同端点，这里保持为空，让具体API调用中指定完整路径
+// 根据后端API文档，大多数接口使用/api/前缀
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // API超时时间
@@ -36,80 +35,91 @@ export const SUCCESS_CODE = STATUS_CODE.SUCCESS;
 
 // 端点配置，根据后端API文档更新
 const ENDPOINTS = {
-  // 认证相关
+  // 用户认证相关
   AUTH: {
-    LOGIN: '/auth/login',
-    REGISTER: '/auth/register',
-    LOGOUT: '/auth/logout',
-    REFRESH_TOKEN: '/auth/refresh',
-    GET_PROFILE: '/auth/profile',
-    UPDATE_PROFILE: '/auth/profile',
-    UPDATE_PASSWORD: '/auth/password'
+    LOGIN: '/api/users/login',
+    REGISTER: '/api/users/register',
+    LOGOUT: '/api/users/logout',
+    ME: '/api/users/me',
+    UPDATE_PROFILE: '/api/users/me',
+    UPDATE_PASSWORD: '/api/users/me/password',
+    UPDATE_AVATAR: '/api/users/me/avatar'
   },
   
   // 文章相关
   ARTICLES: {
-    LIST: '/articles',
-    DETAIL: (id) => `/articles/${id}`,
-    CREATE: '/articles',
-    UPDATE: (id) => `/articles/${id}`,
-    DELETE: (id) => `/articles/${id}`,
-    PUBLISH: (id) => `/articles/${id}/publish`,
-    UNPUBLISH: (id) => `/articles/${id}/unpublish`,
-    USER_ARTICLES: (userId) => `/users/${userId}/articles`,
-    SEARCH: '/articles/search',
-    RECOMMEND: '/articles/recommend'
+    LIST: '/api/articles',
+    DETAIL: (id) => `/articles/${id}`, // 文档中没有/api/前缀
+    CREATE: '/articles', // 文档中没有/api/前缀
+    UPDATE: (id) => `/articles/${id}`, // 文档中没有/api/前缀
+    DELETE: (id) => `/articles/${id}`, // 文档中没有/api/前缀
+    PUBLISH_STATUS: (id) => `/articles/${id}/publish-status`,
+    LIKE_STATUS: (id) => `/api/articles/${id}/like-status`,
+    LIKE_STATUS2: (id) => `/articles/${id}/like-status`, // 兼容文档中的两种路径
+    GET_LIKE_STATUS: (id) => `/articles/${id}/like/status`,
+    FAVORITE: (id) => `/articles/${id}/favorite`,
+    UNFAVORITE: (id) => `/articles/${id}/unfavorite`,
+    GET_FAVORITE_STATUS: (id) => `/articles/${id}/favorite/status`,
+    SHARE: '/articles/share'
   },
   
   // 分类相关
   CATEGORIES: {
-    LIST: '/categories',
-    DETAIL: (id) => `/categories/${id}`,
-    CREATE: '/categories',
-    UPDATE: (id) => `/categories/${id}`,
-    DELETE: (id) => `/categories/${id}`
+    LIST: '/api/categories',
+    DETAIL: (id) => `/api/categories/${id}`,
+    CREATE: '/api/categories',
+    UPDATE: (id) => `/api/categories/${id}`,
+    DELETE: (id) => `/api/categories/${id}`,
+    ARTICLES: (id) => `/api/categories/${id}/articles`
   },
   
   // 标签相关
   TAGS: {
-    LIST: '/tags',
-    CREATE: '/tags',
-    DELETE: (id) => `/tags/${id}`
+    LIST: '/api/tags',
+    DETAIL: (id) => `/api/tags/${id}`,
+    CREATE: '/api/tags',
+    UPDATE: (id) => `/api/tags/${id}`,
+    DELETE: (id) => `/api/tags/${id}`,
+    POPULAR: '/api/tags/popular',
+    BATCH: '/api/tags/batch',
+    SEARCH: '/api/tags/search',
+    VALIDATE: '/api/tags/validate',
+    STATS: '/api/tags/stats'
   },
   
   // 评论相关
   COMMENTS: {
-    LIST: (articleId) => `/articles/${articleId}/comments`,
-    CREATE: (articleId) => `/articles/${articleId}/comments`,
-    UPDATE: (id) => `/comments/${id}`,
-    DELETE: (id) => `/comments/${id}`,
-    REPLY: (commentId) => `/comments/${commentId}/replies`,
-    LIKE: (id) => `/comments/${id}/like`,
-    UNLIKE: (id) => `/comments/${id}/unlike`
+    LIST: '/api/comments',
+    CREATE: '/api/comments',
+    DETAIL: (id) => `/api/comments/${id}`,
+    UPDATE: (id) => `/api/comments/${id}`,
+    DELETE: (id) => `/api/comments/${id}`,
+    BATCH_DELETE: '/api/comments/batch',
+    LIKE: (id) => `/api/comments/${id}/like`,
+    UNLIKE: (id) => `/api/comments/${id}/unlike`,
+    STATS: '/api/comments/stats',
+    HOT: '/api/comments/hot',
+    LATEST: '/api/comments/latest'
   },
   
   // 用户相关
   USERS: {
-    DETAIL: (id) => `/users/${id}`,
-    UPDATE: (id) => `/users/${id}`,
+    DETAIL: (id) => `/api/users/${id}`,
     FOLLOW: (id) => `/users/${id}/follow`,
     UNFOLLOW: (id) => `/users/${id}/unfollow`,
-    FOLLOWERS: (id) => `/users/${id}/followers`,
-    FOLLOWING: (id) => `/users/${id}/following`
+    GET_FOLLOW_STATUS: (id) => `/users/${id}/follow/status`,
+    FOLLOWERS: (id) => `/users/${id}/followes`, // 注意文档中的拼写followes
+    FOLLOWINGS: (id) => `/users/${id}/followings`,
+    FAVORITES: '/user/favorites',
+    LIKES: '/user/likes'
   },
   
   // 文件上传相关
   UPLOAD: {
-    IMAGE: '/upload/image',
-    FILE: '/upload/file',
-    AVATAR: '/upload/avatar'
-  },
-  
-  // 统计相关
-  STATS: {
-    OVERVIEW: '/stats/overview',
-    ARTICLE_STATS: '/stats/articles',
-    USER_STATS: '/stats/users'
+    AVATAR: '/file/avatar',
+    COMMON: '/file/common',
+    PRESIGNED_URL: '/file/presigned-url',
+    DELETE: '/file'
   }
 };
 

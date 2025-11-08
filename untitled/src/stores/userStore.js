@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { userAPI } from '../api';
+import { login, register, getCurrentUser, getUsers, getUserById, updateUser, changePassword, uploadAvatar, getSecuritySettings, updateSecuritySettings, getPreferences, updatePreferences, getLoginDevices, logoutDevice, getLoginHistory, refreshToken, logout } from '../api/modules/user';
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -84,7 +84,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.login(credentials);
+      const result = await login(credentials);
       
       // 保存token
       if (result.token) {
@@ -111,7 +111,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.register(userData);
+      const result = await register(userData);
       
       // 注册成功后自动登录
       if (result.token) {
@@ -138,7 +138,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getCurrentUser();
+      const result = await getCurrentUser();
       currentUser.value = result;
       return result;
     } catch (err) {
@@ -160,7 +160,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getUsers(params);
+      const result = await getUsers(params);
       
       if (result.data) {
         users.value = result.data;
@@ -186,7 +186,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getUserById(id);
+      const result = await getUserById(id);
       
       // 如果是当前用户，更新currentUser
       if (currentUser.value && currentUser.value.id === id) {
@@ -209,7 +209,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.updateUser(id, userData);
+      const result = await updateUser(id, userData);
       
       // 如果是当前用户，更新currentUser
       if (currentUser.value && currentUser.value.id === id) {
@@ -246,7 +246,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.changePassword({ oldPassword, newPassword });
+      const result = await changePassword({ oldPassword, newPassword });
       return result;
     } catch (err) {
       error.value = err.message || '修改密码失败';
@@ -267,7 +267,7 @@ export const useUserStore = defineStore('user', () => {
       const formData = new FormData();
       formData.append('avatar', file);
       
-      const result = await userAPI.uploadAvatar(formData);
+      const result = await uploadAvatar(formData);
       
       // 更新当前用户头像
       if (currentUser.value) {
@@ -290,7 +290,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getSecuritySettings();
+      const result = await getSecuritySettings();
       securitySettings.value = result;
       return result;
     } catch (err) {
@@ -308,7 +308,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.updateSecuritySettings(settings);
+      const result = await updateSecuritySettings(settings);
       securitySettings.value = result;
       return result;
     } catch (err) {
@@ -326,7 +326,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getPreferences();
+      const result = await getPreferences();
       preferences.value = result;
       return result;
     } catch (err) {
@@ -344,7 +344,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.updatePreferences(userPreferences);
+      const result = await updatePreferences(userPreferences);
       preferences.value = result;
       return result;
     } catch (err) {
@@ -362,7 +362,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getLoginDevices();
+      const result = await getLoginDevices();
       loginDevices.value = result;
       return result;
     } catch (err) {
@@ -380,7 +380,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      await userAPI.logoutDevice(deviceId);
+      await logoutDevice(deviceId);
       
       // 从列表中移除设备
       loginDevices.value = loginDevices.value.filter(device => device.id !== deviceId);
@@ -401,7 +401,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.getLoginHistory();
+      const result = await getLoginHistory();
       loginHistory.value = result;
       return result;
     } catch (err) {
@@ -435,7 +435,7 @@ export const useUserStore = defineStore('user', () => {
     error.value = null;
     
     try {
-      const result = await userAPI.refreshToken();
+      const result = await refreshToken();
       
       // 更新Token
       token.value = result.token;
@@ -466,7 +466,7 @@ export const useUserStore = defineStore('user', () => {
     
     // 调用API登出
     try {
-      userAPI.logout();
+         logout();
     } catch (err) {
       // 忽略登出API的错误
       console.log('Logout API error (ignored):', err);

@@ -17,7 +17,11 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-
+  global-config:
+    db-config:
+      logic-delete-field: isDeleted # 逻辑删除字段名（实体类属性名）
+      logic-delete-value: 1 # 已删除值
+      logic-not-delete-value: 0 # 未删除值
 # JWT 配置（敏感信息用占位符替换）
 jwt:
   secret: ${JWT_SECRET}  # 环境变量占位符：JWT密钥
