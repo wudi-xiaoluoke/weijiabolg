@@ -3,13 +3,13 @@ package com.example.weijiahome.controller;
 
 import com.example.weijiahome.entity.po.Comments;
 import com.example.weijiahome.entity.po.Result;
-import com.example.weijiahome.entity.vo.CommentsListVO;
-import com.example.weijiahome.entity.vo.LikeVO;
-import com.example.weijiahome.entity.vo.SaveCommentVO;
+import com.example.weijiahome.entity.vo.*;
 import com.example.weijiahome.service.ICommentsService;
 import com.example.weijiahome.utils.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * <p>
@@ -83,5 +83,74 @@ public class CommentsController {
         String userId = jwtUtil.getUserIdFromToken(token);
         return Integer.parseInt(userId);
     }
+    /**
+     * 获取指定id的评论详情
+     */
+    @GetMapping("/{id}")
+    public Result<CommentsLikeVO> getIDComment(@PathVariable("id") Integer id,
+                                               @RequestHeader("Authorization") String authorization){
+        //解析请求头中的token获得用户id
+        Integer userID = getuserIdFromToken(authorization);
+        return Result.ok(commentsService.getIDComment(id,userID));
+    }
+    /**
+     * 更新指定的ID的评论
+     */
+    @PutMapping("/{id}")
+    public  Result<CommentUpdateVO> updateComment(@PathVariable("id")Integer id,
+                                                  @RequestBody String content){
+        return Result.ok(commentsService.updateComment(id,content));
+    }
+    /**
+     *批量删除评论
+     */
+    @DeleteMapping("/batch")
+    public Result<Integer> deleteComments(@RequestHeader("Authorization") String authorization,
+                                         @RequestBody List<Integer> ids){
+        //解析请求头中的token获得用户id
+        Integer userId = getuserIdFromToken(authorization);
+       return Result.ok(commentsService.deleteComments(userId,ids));
+    }
+    /**
+     * 取消点赞指定ID的评论
+     */
+    @PostMapping("/{id}/unlike")
+    public Result<LikeVO> unLikeById(@PathVariable("id") Integer id,
+                                     @RequestHeader("Authorization") String authorization){
+        //解析请求头中的token获得用户id
+        Integer userId = getuserIdFromToken(authorization);
+        LikeVO likeVO = commentsService.unLikeById(id, userId);
+        if (likeVO != null){
+            return Result.ok(likeVO);
+        }else {
+            return Result.serverError("取消点赞失败");
+        }
+
+    }
+    /**
+     * 获取评论统计
+     */
+    @GetMapping("/stats")
+    public Result<CommentsStatsVO> statsComments(@RequestParam(required = false)Integer id){
+        return Result.ok(commentsService.statsComments(id));
+    }
+    /**
+     * 获取热门评论
+     */
+    @GetMapping("/popular")
+    public Result<List<CommentsLikeVO>> popularComments(@RequestParam Integer limit,
+                                                  @RequestParam(required = false) Integer articleId){
+      return Result.ok(commentsService.popularComments(limit,articleId));
+    }
+    /**
+     * 获取最新评论
+     */
+    @GetMapping("/recent")
+    public Result<CommentRecentVO> recentComments(@RequestParam Integer limit,
+                                                  @RequestParam(required = false)Integer articleId){
+        return Result.ok(commentsService.recentComments(limit,articleId));
+    }
+
+
 
 }

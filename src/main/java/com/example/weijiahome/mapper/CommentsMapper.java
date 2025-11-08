@@ -25,4 +25,25 @@ public interface CommentsMapper extends BaseMapper<Comments> {
                                  @Param("pageSize") Integer pageSize);
     @Select("select count(*) from blog.comments")
     Integer count();
+
+    /**
+     * 查询普通用户拥有的父评论ID（过滤无权删除的）
+     * @param userId
+     * @param uniqueParentIds
+     * @return
+     */
+    List<Integer> selectOwnParentCommentIds(Integer userId, List<Integer> uniqueParentIds);
+    /**
+     * 根据父评论ID查询所有子评论ID
+     * @param parentIds 父评论ID列表
+     * @return 子评论ID列表
+     */
+    List<Integer> selectChildCommentIdsByParentIds(@Param("parentIds") List<Integer> parentIds);
+
+    /**
+     * 逻辑删除评论（批量）
+     * @param commentIds 要删除的评论ID列表（父+子）
+     * @return 删除成功的数量
+     */
+    int logicDeleteComments(@Param("commentIds") List<Integer> commentIds);
 }

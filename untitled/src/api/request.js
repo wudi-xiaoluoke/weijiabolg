@@ -1,5 +1,6 @@
 // axios 实例配置
 import axios from 'axios';
+import { ElMessage } from 'element-plus';
 import { API_BASE_URL, TIMEOUT, SUCCESS_CODE } from './config';
 import { getToken, removeToken } from '../utils/auth';
 
@@ -17,14 +18,10 @@ service.interceptors.request.use(
   config => {
     // 使用auth工具函数获取token
     const token = getToken();
-    console.log('请求拦截器 - 当前token:', token);
     if (token) {
       // 确保token格式正确
       const tokenString = typeof token === 'string' ? token : String(token);
       config.headers.Authorization = `Bearer ${tokenString}`;
-      console.log('已设置Authorization头:', config.headers.Authorization);
-    } else {
-      console.log('未设置Authorization头，token不存在');
     }
     // 添加时间戳防止缓存
     if (config.method === 'get') {
@@ -45,73 +42,74 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   response => {
     const { data, config } = response;
-    console.log(`响应拦截器 - ${config.url} - 原始响应数据:`, response);
     
     // 后端返回的是Result<T>格式，需要提取其中的data字段
-    // 如果data包含status字段，说明是标准的Result响应格式
-    if (data && (data.status === 'SUCCESS' || data.status === 'ERROR')) {
-      console.log(`响应拦截器 - ${config.url} - 提取的data字段:`, data.data);
-      return Promise.resolve(data.data);
+    // 支持状态码和字符串状态两种格式的响应
+    if (data) {
+      // 处理标准的Result响应格式
+      if (data.status === 'SUCCESS') {
+        return Promise.resolve(data.data);
+      } 
+      // 处理可能的code格式响应
+      else if (data.code !== undefined) {
+        const successCodes = Array.isArray(SUCCESS_CODE) ? SUCCESS_CODE : [SUCCESS_CODE];
+        if (successCodes.includes(data.code) || data.code === 0 || data.code === 200) {
+          // 对分页数据特殊处理，保留原始结构
+          if (data.data && (data.pageNum || data.total || data.pages)) {
+            return Promise.resolve(data);
+          }
+          return Promise.resolve(data.data || data);
+        } else {
+          ElMessage.error(data.message || '请求失败');
+          return Promise.reject(new Error(data.message || '请求失败'));
+        }
+      }
     }
     
     // 兼容其他可能的数据格式
-    console.log(`响应拦截器 - ${config.url} - 直接返回响应数据:`, data);
     return Promise.resolve(data);
   },
   error => {
     console.error('响应错误:', error);
     
-    // 网络错误处理
-    if (!error.response) {
-      console.error('网络错误，请检查网络连接');
-      // 在开发环境下，如果是未登录或服务器拒绝访问，提供友好提示
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('提示: 可能是后端服务未启动或未登录状态');
-      }
+    // 处理超时错误
+    if (error.message?.includes('timeout')) {
+      ElMessage.error('请求超时，请稍后重试');
       return Promise.reject(error);
     }
     
-    const { status } = error.response;
-    // 根据不同状态码提供友好提示
-    switch (status) {
-      case 401:
-        console.error('未授权，请重新登录');
-        break;
-      case 403:
-        console.error('服务器拒绝访问');
-        break;
-      case 404:
-        console.error('请求的资源不存在');
-        break;
-      case 500:
-        console.error('服务器内部错误');
-        break;
-      default:
-        console.error(`请求失败，状态码: ${status}`);
+    // 网络错误处理
+    if (!error.response) {
+      ElMessage.error('网络错误，请检查网络连接');
+      return Promise.reject(error);
     }
     
-    // 根据HTTP状态码处理
+    const { status, data } = error.response;
+    
+    // 根据HTTP状态码处理不同的错误
     switch (status) {
       case 401:
-        console.error('401未授权错误，清除token并重定向到登录页');
+        ElMessage.error('请先登录');
         removeToken();
-        // 不要在登录过程中重定向，避免循环重定向
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+        // 延迟跳转，确保用户看到错误提示
+        setTimeout(() => {
+          // 避免循环重定向
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+        }, 1000);
         break;
       case 403:
-        console.error('403禁止访问错误，可能是token无效或权限不足');
-        // 不要在获取用户信息失败时自动清除token，让登录流程继续
+        ElMessage.error('没有权限访问该资源');
         break;
       case 404:
-        console.error('404请求的资源不存在');
+        ElMessage.error('请求的资源不存在');
         break;
       case 500:
-        console.error('500服务器内部错误');
+        ElMessage.error('服务器内部错误');
         break;
       default:
-        console.error(`请求失败: ${status}`);
+        ElMessage.error(data?.message || `请求失败，状态码: ${status}`);
     }
     
     return Promise.reject(error);
@@ -136,5 +134,12 @@ export const request = {
     return service.patch(url, data);
   }
 };
+
+// 导出单独的方法以增强灵活性
+export const get = (url, params = {}) => service.get(url, { params });
+export const post = (url, data = {}, config = {}) => service.post(url, data, config);
+export const put = (url, data = {}, config = {}) => service.put(url, data, config);
+export const del = (url, params = {}) => service.delete(url, { params });
+export const patch = (url, data = {}, config = {}) => service.patch(url, data, config);
 
 export default service;

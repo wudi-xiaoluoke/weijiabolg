@@ -1,4 +1,5 @@
 import request from '../../utils/request'
+import { ENDPOINTS } from '../config'
 
 /**
  * 获取文章列表
@@ -8,10 +9,12 @@ import request from '../../utils/request'
  * @param {string} params.keyword - 关键词搜索
  * @param {number} params.categoryId - 分类ID
  * @param {number} params.tagId - 标签ID
+ * @param {string} params.sort - 排序方式
+ * @param {string} params.order - 排序顺序
  * @returns {Promise}
  */
 export const getArticles = (params = {}) => {
-  return request.get('/api/articles', { params })
+  return request.get(ENDPOINTS.ARTICLES.LIST, { params })
 }
 
 /**
@@ -20,7 +23,7 @@ export const getArticles = (params = {}) => {
  * @returns {Promise}
  */
 export const getArticleById = (id) => {
-  return request.get(`/api/articles/${id}`)
+  return request.get(ENDPOINTS.ARTICLES.DETAIL(id))
 }
 
 /**
@@ -33,7 +36,7 @@ export const getArticleById = (id) => {
  * @returns {Promise}
  */
 export const createArticle = (data) => {
-  return request.post('/api/articles', data)
+  return request.post(ENDPOINTS.ARTICLES.CREATE, data)
 }
 
 /**
@@ -43,7 +46,7 @@ export const createArticle = (data) => {
  * @returns {Promise}
  */
 export const updateArticle = (id, data) => {
-  return request.put(`/api/articles/${id}`, data)
+  return request.put(ENDPOINTS.ARTICLES.UPDATE(id), data)
 }
 
 /**
@@ -52,7 +55,7 @@ export const updateArticle = (id, data) => {
  * @returns {Promise}
  */
 export const deleteArticle = (id) => {
-  return request.delete(`/api/articles/${id}`)
+  return request.delete(ENDPOINTS.ARTICLES.DELETE(id))
 }
 
 /**
@@ -62,7 +65,7 @@ export const deleteArticle = (id) => {
  * @returns {Promise}
  */
 export const updatePublishStatus = (id, published) => {
-  return request.put(`/api/articles/${id}/publish-status`, { published })
+  return request.put(ENDPOINTS.ARTICLES.PUBLISH_STATUS(id), published)
 }
 
 /**
@@ -72,41 +75,52 @@ export const updatePublishStatus = (id, published) => {
  * @returns {Promise}
  */
 export const updateLikeStatus = (id, liked) => {
-  return request.put(`/api/articles/${id}/like-status`, { liked })
+  // 尝试使用带/api/前缀的接口，如果失败则使用不带前缀的接口
+  return request.put(ENDPOINTS.ARTICLES.LIKE_STATUS(id), liked)
+    .catch(() => request.put(ENDPOINTS.ARTICLES.LIKE_STATUS2(id), liked))
 }
 
 /**
- * 获取文章评论列表
- * @param {number} articleId - 文章ID
- * @param {Object} params - 查询参数
+ * 获取文章点赞状态
+ * @param {number} id - 文章ID
  * @returns {Promise}
  */
-export const getArticleComments = (articleId, params = {}) => {
-  return request.get(`/api/articles/${articleId}/comments`, { params })
+export const getArticleLikeStatus = (id) => {
+  return request.get(ENDPOINTS.ARTICLES.GET_LIKE_STATUS(id))
 }
 
 /**
- * 创建文章评论
- * @param {number} articleId - 文章ID
- * @param {Object} data - 评论数据
- * @param {string} data.content - 评论内容
- * @param {number} data.parentId - 父评论ID（可选）
+ * 收藏文章
+ * @param {number} id - 文章ID
  * @returns {Promise}
  */
-export const createArticleComment = (articleId, data) => {
-  return request.post(`/api/articles/${articleId}/comments`, data)
+export const favoriteArticle = (id) => {
+  return request.post(ENDPOINTS.ARTICLES.FAVORITE(id))
 }
 
-// 获取用户文章列表
-export const getUserArticles = (params = {}) => {
-  return request.get('/api/articles/user', { params })
+/**
+ * 取消收藏文章
+ * @param {number} id - 文章ID
+ * @returns {Promise}
+ */
+export const unfavoriteArticle = (id) => {
+  return request.post(ENDPOINTS.ARTICLES.UNFAVORITE(id))
 }
 
-// 保留一些现有功能接口
-export const getHotArticles = (limit = 10) => {
-  return request.get('/api/articles/hot', { params: { limit } })
+/**
+ * 获取文章收藏状态
+ * @param {number} id - 文章ID
+ * @returns {Promise}
+ */
+export const getArticleFavoriteStatus = (id) => {
+  return request.get(ENDPOINTS.ARTICLES.GET_FAVORITE_STATUS(id))
 }
 
-export const getRecommendArticles = (limit = 10) => {
-  return request.get('/api/articles/recommend', { params: { limit } })
+/**
+ * 分享文章
+ * @param {Object} data - 分享数据
+ * @returns {Promise}
+ */
+export const shareArticle = (data) => {
+  return request.post(ENDPOINTS.ARTICLES.SHARE, data)
 }

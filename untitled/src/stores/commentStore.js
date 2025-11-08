@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
-import { commentAPI } from '../api';
+import { getArticleComments, createComment, deleteComment, likeComment, unlikeComment, getCommentLikeStatus } from '../api/modules/comment';
 
 export const useCommentStore = defineStore('comment', {
   state: () => ({
@@ -238,46 +238,119 @@ export const useCommentStore = defineStore('comment', {
     },
     
     // 点赞评论
-    async likeComment(id) {
+    async likeCommentAction(commentId) {
       try {
-        const updatedComment = await commentAPI.likeComment(id);
+        await likeComment(commentId);
         
-        // 更新列表中的评论
-        const index = this.comments.findIndex(comment => comment.id === id);
-        if (index !== -1) {
-          this.comments[index] = updatedComment;
-        }
+        // 更新本地评论的点赞状态和数量
+        this.updateCommentLikeStatus(commentId, true);
         
-        // 更新评论树
-        this._updateCommentInTree(id, updatedComment);
-        
-        return updatedComment;
+        ElMessage.success('点赞成功');
       } catch (error) {
         ElMessage.error('点赞失败: ' + (error.message || '未知错误'));
         throw error;
       }
     },
     
-    // 取消点赞
-    async unlikeComment(id) {
+    // 取消点赞评论
+    async unlikeCommentAction(commentId) {
       try {
-        const updatedComment = await commentAPI.unlikeComment(id);
+        await unlikeComment(commentId);
         
-        // 更新列表中的评论
-        const index = this.comments.findIndex(comment => comment.id === id);
-        if (index !== -1) {
-          this.comments[index] = updatedComment;
-        }
+        // 更新本地评论的点赞状态和数量
+        this.updateCommentLikeStatus(commentId, false);
         
-        // 更新评论树
-        this._updateCommentInTree(id, updatedComment);
-        
-        return updatedComment;
+        ElMessage.success('取消点赞成功');
       } catch (error) {
         ElMessage.error('取消点赞失败: ' + (error.message || '未知错误'));
         throw error;
       }
     },
+    
+    // 获取评论点赞状态
+    async fetchCommentLikeStatus(commentId) {
+      try {
+        const status = await getCommentLikeStatus(commentId);
+        
+        // 更新本地状态
+        this.updateCommentLikeStatus(commentId, status.isLiked, status.likeCount);
+        
+        return status;
+      } catch (error) {
+        console.error('获取评论点赞状态失败:', error);
+        return { isLiked: false, likeCount: 0 };
+      }
+    },
+    
+    // 构建评论树结构（辅助方法）
+    buildCommentTree(comments) {
+      const commentMap = new Map();
+      const roots = [];
+      
+      // 先创建所有评论的映射
+      comments.forEach(comment => {
+        comment.children = [];
+        commentMap.set(comment.id, comment);
+      });
+      
+      // 构建树结构
+      comments.forEach(comment => {
+        if (comment.parentId) {
+          const parent = commentMap.get(comment.parentId);
+          if (parent) {
+            parent.children.push(comment);
+          } else {
+            // 如果父评论不存在，将其作为根评论
+            roots.push(comment);
+          }
+        } else {
+          roots.push(comment);
+        }
+      });
+      
+      return roots;
+    },
+    
+    // 在评论树中查找评论（辅助方法）
+    findCommentInTree(comments, id) {
+      for (const comment of comments) {
+        if (comment.id === id) {
+          return comment;
+        }
+        if (comment.children && comment.children.length > 0) {
+          const found = this.findCommentInTree(comment.children, id);
+          if (found) return found;
+        }
+      }
+      return null;
+    },
+    
+    // 更新评论点赞状态（辅助方法）
+    updateCommentLikeStatus(commentId, isLiked, likeCount) {
+      // 更新评论列表中的评论
+      const comment = this.comments.find(c => c.id === commentId);
+      if (comment) {
+        comment.isLiked = isLiked;
+        if (likeCount !== undefined) {
+          comment.likeCount = likeCount;
+        } else {
+          comment.likeCount = (comment.likeCount || 0) + (isLiked ? 1 : -1);
+        }
+      }
+      
+      // 更新评论树中的评论
+      for (const articleId in this.commentTree) {
+        const commentInTree = this.findCommentInTree(this.commentTree[articleId], commentId);
+        if (commentInTree) {
+          commentInTree.isLiked = isLiked;
+          if (likeCount !== undefined) {
+            commentInTree.likeCount = likeCount;
+          } else {
+            commentInTree.likeCount = (commentInTree.likeCount || 0) + (isLiked ? 1 : -1);
+          }
+        }
+      }
+    }
     
     // 审核评论
     async moderateComment(id, status) {

@@ -64,5 +64,8 @@ public class Comments implements Serializable {
      * 软删除标记
      */
     private Integer isdelete;
-
+    /**
+     * 删除时间
+     */
+    private LocalDateTime deleteAt;
 }

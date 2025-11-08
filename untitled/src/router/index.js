@@ -11,6 +11,7 @@ const AuthProfileView = () => import('../views/auth/ProfileView.vue')
 const UserProfileView = () => import('../views/UserProfileView.vue')
 const CategoryView = () => import('../views/CategoryView.vue')
 const TagView = () => import('../views/TagView.vue')
+const SystemSettingsView = () => import('../views/SystemSettingsView.vue')
 
 const routes = [
   {
@@ -131,6 +132,16 @@ const routes = [
     meta: {
       title: '个人配置 - 技术博客',
       breadcrumb: '个人配置',
+      requiresAuth: true // 需要登录才能访问
+    }
+  },
+  {
+    path: '/settings',
+    name: 'systemSettings',
+    component: SystemSettingsView,
+    meta: {
+      title: '系统设置 - 技术博客',
+      breadcrumb: '系统设置',
       requiresAuth: true // 需要登录才能访问
     }
   },
