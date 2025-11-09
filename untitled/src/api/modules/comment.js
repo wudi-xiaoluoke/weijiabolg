@@ -63,3 +63,15 @@ export function unlikeComment(commentId) {
 export function getCommentLikeStatus(commentId) {
   return request.get(ENDPOINTS.COMMENT.GET_LIKE_STATUS(commentId))
 }
+
+/**
+ * 获取最新评论列表
+ * @param {number} page 页码（默认1）
+ * @param {number} pageSize 每页条数（默认10）
+ * @returns {Promise}
+ */
+export function getRecentComments(page = 1, pageSize = 10) {
+  return request.get(ENDPOINTS.COMMENT.RECENT, {
+    params: { page, pageSize }
+  })
+}

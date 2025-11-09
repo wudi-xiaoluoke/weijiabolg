@@ -600,6 +600,7 @@ const handleSubmit = async () => {
     
     // 准备更新数据
     const updateData = {
+      id: profileForm.id, // 添加用户ID
       nickname: profileForm.nickname,
       email: profileForm.email,
       bio: profileForm.bio

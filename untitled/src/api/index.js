@@ -1,4 +1,16 @@
 import request from './request';
+import { isDev } from '@/utils/env';
+
+// 开发环境下初始化模拟服务（如果需要）
+// setupMockServer已经在组件中直接导入了模拟API，这里可以保留或移除
+if (isDev) {
+  try {
+    // 可选的初始化操作
+    console.log('开发环境 - 使用模拟数据');
+  } catch (error) {
+    console.warn('模拟服务初始化失败:', error);
+  }
+}
 
 // API模块定义
 const userAPI = {
@@ -28,7 +40,8 @@ const articleAPI = {
   getArticleById: (id) => request.get(`/api/articles/${id}`),
   createArticle: (data) => request.post('/api/articles', data),
   updateArticle: (id, data) => request.put(`/api/articles/${id}`, data),
-  deleteArticle: (id) => request.delete(`/api/articles/${id}`)
+  deleteArticle: (id) => request.delete(`/api/articles/${id}`),
+  batchUpdateArticles: (ids, data) => request.post('/api/articles/batch-update', { ids, ...data })
 };
 
 const categoryAPI = {

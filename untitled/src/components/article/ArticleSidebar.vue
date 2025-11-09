@@ -44,11 +44,17 @@
         </router-link>
       </div>
     </div>
+    
+    <!-- 最新评论 -->
+    <div class="sidebar-section">
+      <RecentComments />
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import RecentComments from './RecentComments.vue'
 
 const props = defineProps({
   author: {

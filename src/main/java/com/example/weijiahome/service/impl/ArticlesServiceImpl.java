@@ -182,6 +182,10 @@ public class ArticlesServiceImpl extends ServiceImpl<ArticlesMapper, Articles> i
         // 3. 将DTO转换为实体类（如果需要更新的字段在DTO中，需映射到实体）
         Articles articles = new Articles();
         BeanUtils.copyProperties(articlesDTO, articles); // 复制DTO中的字段到实体
+        //修改更新时间 状态改为1时赋值
+        if (articles.getStatus() == 1){
+            articles.setPublishTime(LocalDateTime.now());
+        }
 
         // 4. 执行更新操作（根据条件更新，只更新非空字段）
         // 注意：如果DTO中有null字段，不会更新到数据库（保留原数据）

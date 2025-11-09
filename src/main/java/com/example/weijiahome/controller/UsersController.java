@@ -1,6 +1,7 @@
 package com.example.weijiahome.controller;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.example.weijiahome.config.AliyunOssProperties;
@@ -18,9 +19,13 @@ import com.example.weijiahome.service.IUsersService;
 import com.example.weijiahome.utils.JwtUtil;
 import com.example.weijiahome.utils.PasswordUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,12 +76,16 @@ public class UsersController {
         }
     }
     @PutMapping("/me")
-    public Result putMe(@RequestBody Users user){
-        if (usersService.lambdaUpdate().update(user) != true){
-            return Result.badRequest("用户信息更新失败");
+    public Result putMe(@RequestBody Users user,
+                        @RequestHeader("Authorization") String authorization){
+        Integer userId = getuserIdFromToken(authorization);
+        if (!user.getId().equals(userId)){
+            return Result.error(404,"用户权限不够");
         }
+        usersService.updateById(user);
 
-        return Result.ok(usersService.getById(user.getId()));
+        // 6. 返回更新后的用户信息
+        return Result.ok(usersService.getById(userId));
     }
     @PutMapping("/me/password")
     public Result updatePassword(@RequestHeader("Authorization") String authorization,@RequestBody UsersDTO usersDTO){

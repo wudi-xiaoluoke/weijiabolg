@@ -11,7 +11,9 @@
             comment_count as commentCount,
             like_count as likeCount,
             create_time as createdAt,
-            update_time as updatedAt
+            update_time as updatedAt,
+            publish_time   as publishTime,
+            status as status
         from blog.articles
         <where>
             <if test="keyword != null and keyword != ''">

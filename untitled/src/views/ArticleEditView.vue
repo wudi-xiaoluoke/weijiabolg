@@ -123,22 +123,22 @@
           <div class="custom-tags-container">
             <!-- 显示已添加的标签 -->
             <div 
-              v-for="(tag, index) in processedTags" 
-              :key="index" 
-              class="custom-tag"
-              :class="{ 'tag-disabled': saving || publishing }"
-            >
-              {{ tag }}
-              <span 
-                v-if="!saving && !publishing"
-                class="tag-remove" 
-                @click="removeTag(index)"
-              >×</span>
-            </div>
+                v-for="(tag, index) in processedTags" 
+                :key="index" 
+                class="custom-tag"
+                :class="{ 'tag-disabled': saving || publishing }"
+              >
+                {{ tag }}
+                <span 
+                  v-if="!saving && !publishing"
+                  class="tag-remove" 
+                  @click="removeTag(index)"
+                >×</span>
+              </div>
             
             <!-- 添加新标签的输入框 -->
             <div 
-              v-if="processedTags.length < 10 && !saving && !publishing"
+              v-if="articleForm.tags.length < 10 && !saving && !publishing"
               class="tag-input-wrapper"
             >
               <input
@@ -412,24 +412,33 @@ const articleForm = reactive({
 
 const tagInput = ref('')
 
-// 处理后的标签数组，只包含字符串形式的标签名
+// 处理后的标签数组，只返回纯文本标签名称
 const processedTags = computed(() => {
   return articleForm.tags.map(tag => {
-    if (typeof tag === 'object' && tag !== null) {
-      // 更健壮地处理对象格式的标签
-      if (tag.name) return tag.name;
-      // 如果对象没有name属性，尝试其他常见属性
-      if (tag.title) return tag.title;
-      if (tag.value) return tag.value;
-      // 最后才转换为字符串
-      try {
-        return JSON.stringify(tag).replace(/[{}]/g, '').replace(/"/g, '');
-      } catch (e) {
-        return '标签';
+    // 对标签进行标准化处理，只返回纯文本名称
+    if (typeof tag === 'string') {
+      // 检查是否为JSON字符串
+      if (tag.startsWith('{') && tag.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(tag);
+          // 如果解析成功且有name属性，返回name
+          if (parsed && parsed.name) {
+            return parsed.name;
+          }
+          // 否则尝试提取看起来像标签名的内容
+          return extractTagName(tag);
+        } catch (e) {
+          // 解析失败时，尝试提取看起来像标签名的内容
+          return extractTagName(tag);
+        }
       }
+      // 不是JSON字符串，直接返回
+      return tag.trim();
+    } else if (typeof tag === 'object' && tag !== null) {
+      // 对象类型，返回name属性
+      return tag.name || '';
     }
-    // 确保非对象值也被转换为字符串
-    return String(tag).trim();
+    return '';
   }).filter(tag => tag); // 过滤空标签
 })
 
@@ -579,29 +588,17 @@ const loadArticleData = async () => {
       articleForm.subtitle = article.subtitle || ''
       articleForm.coverImage = article.coverImage || ''
       articleForm.categoryId = article.categoryId
-      // 确保正确处理标签数据，只提取name属性
+      
+      // 确保正确处理标签数据，将所有标签转换为纯字符串格式
       if (article.tags && Array.isArray(article.tags)) {
         articleForm.tags = article.tags.map(tag => {
-          // 使用与processedTags计算属性相同的处理逻辑
-          if (typeof tag === 'object' && tag !== null) {
-            // 更健壮地处理对象格式的标签
-            if (tag.name) return tag.name;
-            // 如果对象没有name属性，尝试其他常见属性
-            if (tag.title) return tag.title;
-            if (tag.value) return tag.value;
-            // 最后才转换为字符串
-            try {
-              return JSON.stringify(tag).replace(/[{}]/g, '').replace(/"/g, '');
-            } catch (e) {
-              return '标签';
-            }
-          }
-          // 确保非对象值也被转换为字符串
-          return String(tag).trim();
+          // 使用extractTagName函数标准化处理每个标签
+          return extractTagName(tag);
         }).filter(tag => tag); // 过滤空标签
       } else {
         articleForm.tags = [];
       }
+      
       articleForm.content = article.content || ''
       articleForm.summary = article.summary || ''
       articleForm.allowComments = article.allowComments !== false
@@ -661,14 +658,65 @@ const openCategoryDialog = () => {
 const addTag = () => {
   const tagText = tagInput.value.trim();
   if (tagText && !processedTags.value.includes(tagText) && processedTags.value.length < 10) {
-    articleForm.tags.push(tagText);
+    // 直接存储字符串形式的标签名，确保标签长度符合要求
+    const validTag = tagText.substring(0, 10);
+    articleForm.tags.push(validTag);
     tagInput.value = '';
+    ElMessage.success(`标签 "${validTag}" 添加成功`);
+  } else if (processedTags.value.includes(tagText)) {
+    ElMessage.warning('该标签已存在');
+  } else if (processedTags.value.length >= 10) {
+    ElMessage.warning('最多只能添加10个标签');
   }
 }
 
 // 移除标签
 const removeTag = (index) => {
   articleForm.tags.splice(index, 1);
+}
+
+// 提取标签名称，处理各种格式的标签数据
+const extractTagName = (tag) => {
+  if (typeof tag === 'string') {
+    // 尝试解析JSON字符串
+    try {
+      const parsed = JSON.parse(tag);
+      return parsed.name || parsed.title || parsed.value || '';
+    } catch (e) {
+      // 如果不是JSON字符串或解析失败，清理格式并尝试提取标签名
+      // 移除JSON格式字符，只保留可能是标签名的部分
+      let cleanTag = tag.replace(/[{}]/g, '')
+                       .replace(/["']/g, '')
+                       .replace(/\\/g, '')
+                       .trim();
+      
+      // 从包含多个属性的字符串中提取name属性值
+      if (cleanTag.includes('name:')) {
+        const nameMatch = cleanTag.match(/name:\s*([^,]+)/);
+        if (nameMatch && nameMatch[1]) {
+          return nameMatch[1].trim();
+        }
+      }
+      
+      // 如果是逗号分隔的多个属性，尝试提取第一个看起来像标签名的部分
+      if (cleanTag.includes(',')) {
+        const parts = cleanTag.split(',').map(p => p.trim());
+        for (const part of parts) {
+          // 跳过包含数字、特殊字符过多的部分，尝试找到纯文本部分
+          if (/^[\u4e00-\u9fa5a-zA-Z]+$/.test(part) || 
+              part.length <= 10 && part.match(/^[\u4e00-\u9fa5a-zA-Z0-9_\-]+$/)) {
+            return part;
+          }
+        }
+      }
+      
+      // 如果都不行，返回清理后的字符串，但限制长度
+      return cleanTag.substring(0, 20).trim();
+    }
+  } else if (typeof tag === 'object' && tag !== null) {
+    return tag.name || tag.title || tag.value || '';
+  }
+  return '';
 }
 
 // 添加分类
@@ -1041,19 +1089,12 @@ const prepareFormData = () => {
   }
   
   // 格式化标签数据为后端期望的格式（{id, name}数组）
-  const formattedTags = articleForm.tags.map((tag, index) => {
-    if (typeof tag === 'object' && tag !== null) {
-      return {
-        id: tag.id || `temp-${index}-${Date.now()}`, // 使用临时ID
-        name: tag.name || String(tag)
-      };
-    } else {
-      // 对于字符串标签，创建临时ID
-      return {
-        id: `temp-${index}-${Date.now()}`,
-        name: String(tag)
-      };
-    }
+  const formattedTags = processedTags.value.map((tagName, index) => {
+    // 只使用纯文本标签名，并为每个标签创建唯一的临时ID
+    return {
+      id: `temp-${Date.now()}-${index}`,
+      name: tagName
+    };
   })
 
   return {

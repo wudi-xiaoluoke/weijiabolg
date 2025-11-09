@@ -49,18 +49,18 @@ const ENDPOINTS = {
   // 文章相关
   ARTICLES: {
     LIST: '/api/articles',
-    DETAIL: (id) => `/articles/${id}`, // 文档中没有/api/前缀
-    CREATE: '/articles', // 文档中没有/api/前缀
-    UPDATE: (id) => `/articles/${id}`, // 文档中没有/api/前缀
-    DELETE: (id) => `/articles/${id}`, // 文档中没有/api/前缀
-    PUBLISH_STATUS: (id) => `/articles/${id}/publish-status`,
+    DETAIL: (id) => `/api/articles/${id}`, // 统一使用/api/前缀
+    CREATE: '/api/articles', // 统一使用/api/前缀
+    UPDATE: (id) => `/api/articles/${id}`, // 统一使用/api/前缀
+    DELETE: (id) => `/api/articles/${id}`, // 统一使用/api/前缀
+    PUBLISH_STATUS: (id) => `/api/articles/${id}/publish-status`,
     LIKE_STATUS: (id) => `/api/articles/${id}/like-status`,
-    LIKE_STATUS2: (id) => `/articles/${id}/like-status`, // 兼容文档中的两种路径
-    GET_LIKE_STATUS: (id) => `/articles/${id}/like/status`,
-    FAVORITE: (id) => `/articles/${id}/favorite`,
-    UNFAVORITE: (id) => `/articles/${id}/unfavorite`,
-    GET_FAVORITE_STATUS: (id) => `/articles/${id}/favorite/status`,
-    SHARE: '/articles/share'
+    LIKE_STATUS2: (id) => `/api/articles/${id}/like-status`, // 统一使用/api/前缀
+    GET_LIKE_STATUS: (id) => `/api/articles/${id}/like/status`,
+    FAVORITE: (id) => `/api/articles/${id}/favorite`,
+    UNFAVORITE: (id) => `/api/articles/${id}/unfavorite`,
+    GET_FAVORITE_STATUS: (id) => `/api/articles/${id}/favorite/status`,
+    SHARE: '/api/articles/share'
   },
   
   // 分类相关
@@ -98,6 +98,8 @@ const ENDPOINTS = {
     LIKE: (id) => `/api/comments/${id}/like`,
     UNLIKE: (id) => `/api/comments/${id}/unlike`,
     STATS: '/api/comments/stats',
+    RECENT: '/api/comments/recent',
+    GET_LIKE_STATUS: (id) => `/api/comments/${id}/like-status`,
     HOT: '/api/comments/hot',
     LATEST: '/api/comments/latest'
   },

@@ -1,169 +1,117 @@
 <template>
   <div class="article-list-container">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <el-row :gutter="20">
-        <el-col :xs="24" :sm="16">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索文章标题或内容"
-            prefix-icon="el-icon-search"
-            clearable
-          >
-            <template #append>
-              <el-button @click="handleSearch">搜索</el-button>
-            </template>
-          </el-input>
-        </el-col>
-        <el-col :xs="24" :sm="8">
-          <div class="filter-actions">
-            <el-select v-model="filterSort" placeholder="排序方式" size="large">
-              <el-option label="最新发布" value="createdAt:desc" />
-              <el-option label="最早发布" value="createdAt:asc" />
-              <el-option label="阅读量高" value="viewCount:desc" />
-              <el-option label="评论数多" value="commentCount:desc" />
-            </el-select>
+    <div class="main-content-layout">
+      <!-- 文章列表区域 -->
+      <div class="article-content">
+        <!-- 搜索栏 -->
+        <div class="search-bar">
+          <el-row :gutter="20">
+            <el-col :xs="24" :sm="16">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索文章标题或内容"
+                prefix-icon="el-icon-search"
+                clearable
+              >
+                <template #append>
+                  <el-button @click="handleSearch">搜索</el-button>
+                </template>
+              </el-input>
+            </el-col>
+            <el-col :xs="24" :sm="8">
+              <div class="filter-actions">
+                <el-select v-model="filterSort" placeholder="排序方式" size="large">
+                  <el-option label="最新发布" value="createdAt:desc" />
+                  <el-option label="最早发布" value="createdAt:asc" />
+                  <el-option label="阅读量高" value="viewCount:desc" />
+                  <el-option label="评论数多" value="commentCount:desc" />
+                </el-select>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+        
+        <!-- 文章列表 -->
+        <div class="article-list" v-if="!articleStore.loading">
+          <div v-if="articleStore.articles && articleStore.articles.length > 0" class="article-items">
+            <div 
+              v-for="article in articleStore.articles" 
+              :key="article.id" 
+              class="article-item"
+            >
+              <router-link :to="`/article/${article.id}`" class="article-link">
+                <h3 class="article-title">{{ article.displayId || '文章' }}. {{ article.title }}</h3>
+                <div class="article-meta">
+                  <span class="author">{{ article.author?.username || '匿名用户' }}</span>
+                  <span class="dot">·</span>
+                  <span class="date">{{ formatDate(article.createdAt) }}</span>
+                  <span class="dot">·</span>
+                  <span class="category">
+                    <el-tag size="small" v-if="article.category">{{ article.category.name }}</el-tag>
+                    <span v-else>未分类</span>
+                  </span>
+                  <span class="dot">·</span>
+                  <span class="views"><i class="el-icon-view"></i> {{ article.viewCount || 0 }}</span>
+                  <span class="dot">·</span>
+                  <span class="comments"><i class="el-icon-chat-dot-round"></i> {{ article.commentCount || 0 }}</span>
+                </div>
+                <div class="article-actions-list">
+                  <button 
+                    class="action-btn like-btn" 
+                    :class="{ active: socialStore.isArticleLiked(article.id) }"
+                    @click.stop="handleArticleLike(article.id)"
+                    title="点赞"
+                  >
+                    <i class="el-icon-thumb"></i>
+                    <span>{{ article.likes || article.likeCount || 0 }}</span>
+                  </button>
+                  <button 
+                    class="action-btn favorite-btn" 
+                    :class="{ active: socialStore.isArticleFavorited(article.id) }"
+                    @click.stop="handleArticleFavorite(article.id)"
+                    title="收藏"
+                  >
+                    <i class="el-icon-star-off"></i>
+                    <span>收藏</span>
+                  </button>
+                </div>
+                <div class="article-excerpt">{{ article.excerpt || getExcerpt(article.content) }}</div>
+                <div class="article-tags" v-if="article.tags && article.tags.length > 0">
+                  <el-tag 
+                    v-for="tag in article.tags.slice(0, 5)" 
+                    :key="tag.id" 
+                    size="small" 
+                    plain
+                  >
+                    {{ tag.name }}</el-tag>
+                </div>
+              </router-link>
+            </div>
           </div>
-        </el-col>
-      </el-row>
-    </div>
-    
-    <!-- 文章列表 -->
-    <div class="article-list" v-if="!articleStore.loading">
-      <div v-if="articleStore.articles.length > 0" class="article-items">
-        <div 
-          v-for="article in articleStore.articles" 
-          :key="article.id" 
-          class="article-item"
-        >
-          <router-link :to="`/article/${article.id}`" class="article-link">
-            <h3 class="article-title">{{ article.title }}</h3>
-            
-            <div class="article-meta">
-              <span class="author">{{ article.author?.username || '匿名用户' }}</span>
-              <span class="dot">·</span>
-              <span class="date">{{ formatDate(article.createdAt) }}</span>
-              <span class="dot">·</span>
-              <span class="category">
-                <el-tag size="small" v-if="article.category">{{ article.category.name }}</el-tag>
-                <span v-else>未分类</span>
-              </span>
-              <span class="dot">·</span>
-              <span class="views"><i class="el-icon-view"></i> {{ article.viewCount || 0 }}</span>
-              <span class="dot">·</span>
-              <span class="comments"><i class="el-icon-chat-dot-round"></i> {{ article.commentCount || 0 }}</span>
-            </div>
-            
-            <div class="article-actions-list">
-              <button 
-                class="action-btn like-btn" 
-                :class="{ active: socialStore.isArticleLiked(article.id) }"
-                @click.stop="handleArticleLike(article.id)"
-                title="点赞"
-              >
-                <i class="el-icon-thumb"></i>
-                <span>{{ article.likes || article.likeCount || 0 }}</span>
-              </button>
-              <button 
-                class="action-btn favorite-btn" 
-                :class="{ active: socialStore.isArticleFavorited(article.id) }"
-                @click.stop="handleArticleFavorite(article.id)"
-                title="收藏"
-              >
-                <i class="el-icon-star-off"></i>
-                <span>收藏</span>
-              </button>
-            </div>
-            
-            <div class="article-excerpt">{{ article.excerpt || getExcerpt(article.content) }}</div>
-            
-            <div class="article-tags" v-if="article.tags && article.tags.length > 0">
-              <el-tag 
-                v-for="tag in article.tags.slice(0, 5)" 
-                :key="tag.id" 
-                size="small" 
-                plain
-              >
-                {{ tag.name }}
-              </el-tag>
-            </div>
-          </router-link>
+          <div v-else class="empty-state">
+            <el-empty description="暂无文章" />
+          </div>
+        </div>
+        <div v-else class="loading-state">
+          <el-skeleton :rows="5" animated />
+        </div>
+        <div class="pagination-container" v-if="!articleStore.loading && articleStore.pagination && articleStore.pagination.total > 0">
+          <el-pagination
+            v-model:current-page="articleStore.pagination.currentPage"
+            v-model:page-size="articleStore.pagination.pageSize"
+            :page-sizes="[10, 20, 50]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="articleStore.pagination.total"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
         </div>
       </div>
       
-      <div v-else class="empty-state">
-        <el-empty description="暂无文章" />
-      </div>
-    </div>
-    
-    <!-- 加载状态 -->
-    <div v-else class="loading-state">
-      <el-skeleton :rows="5" animated />
-    </div>
-    
-    <!-- 分页 -->
-    <div class="pagination-container" v-if="!articleStore.loading && articleStore.pagination.total > 0">
-      <el-pagination
-        v-model:current-page="articleStore.pagination.currentPage"
-        v-model:page-size="articleStore.pagination.pageSize"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="articleStore.pagination.total"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
-    </div>
-    
-    <!-- 侧边栏 -->
-    <div class="sidebar">
-      <!-- 热门文章 -->
-      <div class="sidebar-section">
-        <h3 class="section-title">热门文章</h3>
-        <div class="hot-articles">
-          <div 
-            v-for="(article, index) in articleStore.hotArticles" 
-            :key="article.id" 
-            class="hot-article-item"
-          >
-            <span class="rank">{{ index + 1 }}</span>
-            <router-link :to="`/article/${article.id}`" class="hot-article-title">
-              {{ article.title }}
-            </router-link>
-          </div>
-          <div v-if="articleStore.hotArticles.length === 0" class="empty-hot">
-            暂无热门文章
-          </div>
-        </div>
-      </div>
-      
-      <!-- 分类 -->
-      <div class="sidebar-section">
-        <h3 class="section-title">文章分类</h3>
-        <div class="categories">
-          <router-link 
-            v-for="category in categories" 
-            :key="category.id" 
-            :to="`/category/${category.id}`"
-            class="category-item"
-          >
-            <span class="category-name">{{ category.name }}</span>
-            <span class="category-count">({{ category.articleCount }})</span>
-          </router-link>
-        </div>
-      </div>
-      
-      <!-- 标签云 -->
-      <div class="sidebar-section">
-        <h3 class="section-title">标签云</h3>
-        <div class="tag-cloud">
-          <router-link 
-            v-for="tag in tags" 
-            :key="tag.id" 
-            :to="`/tag/${tag.id}`"
-            class="tag-item"
-          >
-            {{ tag.name }}
-          </router-link>
+      <!-- 侧边栏 -->
+      <div class="sidebar-container">
+        <div class="sidebar">
+          <ArticleSidebar />
         </div>
       </div>
     </div>
@@ -176,10 +124,15 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useArticleStore } from '../store/modules/article'
 import { useSocialStore } from '../store/modules/social'
+import { useCategoryStore } from '../stores/categoryStore'
+import { useTagStore } from '../stores/tagStore'
+import ArticleSidebar from '../components/article/ArticleSidebar.vue'
 import { useAuthStore } from '../store/modules/auth'
 
 const articleStore = useArticleStore()
 const socialStore = useSocialStore()
+const categoryStore = useCategoryStore()
+const tagStore = useTagStore()
 const authStore = useAuthStore()
 const router = useRouter()
 
@@ -187,26 +140,8 @@ const router = useRouter()
 const searchKeyword = ref('')
 const filterSort = ref('createdAt:desc')
 
-// 分类和标签数据（这里先用mock数据，后续会通过API获取）
-const categories = ref([
-  { id: 1, name: '前端开发', articleCount: 15 },
-  { id: 2, name: '后端开发', articleCount: 12 },
-  { id: 3, name: '数据库', articleCount: 8 },
-  { id: 4, name: '工具教程', articleCount: 5 }
-])
-
-const tags = ref([
-  { id: 1, name: 'Vue.js' },
-  { id: 2, name: 'React' },
-  { id: 3, name: 'Node.js' },
-  { id: 4, name: 'MySQL' },
-  { id: 5, name: 'JavaScript' },
-  { id: 6, name: 'TypeScript' },
-  { id: 7, name: 'Git' },
-  { id: 8, name: 'CSS' },
-  { id: 9, name: 'HTML' },
-  { id: 10, name: 'Webpack' }
-])
+// 从store获取分类和标签数据，不再使用硬编码的模拟数据
+  // 注意：需要在onMounted中获取这些数据
 
 // 格式化日期
 const formatDate = (dateString) => {
@@ -347,27 +282,69 @@ const toLogin = () => {
 
 // 页面加载时获取数据
 onMounted(async () => {
-  // 获取文章列表
-  await fetchArticles()
-  
-  // 获取热门文章
-  await articleStore.fetchHotArticles(5)
-  
-  // 如果用户已登录，预加载文章的社交状态
-  if (authStore.isAuthenticated) {
-    const articleIds = articleStore.articles.map(article => article.id)
-    await socialStore.preloadArticleSocialStatus(articleIds)
+  try {
+    // 获取文章列表
+    await fetchArticles()
+    
+    // 获取热门文章
+    await articleStore.fetchHotArticles(5)
+    
+    // 获取分类列表
+    await categoryStore.getCategories()
+    
+    // 获取标签列表
+    await tagStore.getTags()
+    
+    // 如果用户已登录，预加载文章的社交状态
+    if (authStore.isAuthenticated && articleStore.articles) {
+      const articleIds = articleStore.articles.map(article => article.id)
+      await socialStore.preloadArticleSocialStatus(articleIds)
+    }
+  } catch (error) {
+    console.error('页面初始化数据加载失败:', error)
   }
 })
 </script>
 
 <style scoped>
 .article-list-container {
-  display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 30px;
   max-width: 1200px;
   margin: 0 auto;
+  padding: 20px;
+}
+
+.main-content-layout {
+  display: flex;
+  gap: 30px;
+  margin-top: 30px;
+}
+
+.article-content {
+  flex: 1;
+  min-width: 0; /* 防止flex子元素溢出 */
+}
+
+.sidebar-container {
+  width: 320px;
+  flex-shrink: 0;
+}
+
+/* 响应式设计 */
+@media (max-width: 992px) {
+  .main-content-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .sidebar-container {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .article-list-container {
+    padding: 15px;
+  }
 }
 
 .search-bar {

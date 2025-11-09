@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ElMessage } from 'element-plus';
-import { getArticleComments, createComment, deleteComment, likeComment, unlikeComment, getCommentLikeStatus } from '../api/modules/comment';
+import { getArticleComments, createComment, deleteComment, likeComment, unlikeComment, getCommentLikeStatus, getRecentComments } from '../api/modules/comment';
+import request from '../utils/request';
+import { ENDPOINTS } from '../api/config';
 
 export const useCommentStore = defineStore('comment', {
   state: () => ({
@@ -71,10 +73,13 @@ export const useCommentStore = defineStore('comment', {
     async fetchComments(params = {}) {
       this.isLoading = true;
       try {
-        const response = await commentAPI.getComments({
-          page: params.page || this.pagination.currentPage,
-          pageSize: params.pageSize || this.pagination.pageSize,
-          ...params
+        // 使用getArticleComments，但需要根据实际API调整
+        const response = await request.get(ENDPOINTS.COMMENTS.LIST, {
+          params: {
+            page: params.page || this.pagination.currentPage,
+            pageSize: params.pageSize || this.pagination.pageSize,
+            ...params
+          }
         });
         
         this.comments = response.data || [];
@@ -430,9 +435,9 @@ export const useCommentStore = defineStore('comment', {
     // 获取最近评论
     async fetchRecentComments(params = {}) {
       try {
-        const comments = await commentAPI.getRecentComments(params);
-        this.recentComments = comments;
-        return comments;
+        const response = await getRecentComments(params.page || 1, params.pageSize || 10);
+        this.recentComments = response.data || [];
+        return this.recentComments;
       } catch (error) {
         ElMessage.error('获取最近评论失败: ' + (error.message || '未知错误'));
         throw error;

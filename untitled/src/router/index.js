@@ -2,7 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../store/modules/auth'
 
 // 使用路由懒加载优化性能
+const HomeView = () => import('../views/HomeView.vue')
 const ArticleListView = () => import('../views/article/ArticleListView.vue')
+const ArticleBrowseView = () => import('../views/ArticleBrowseView.vue')
 const ArticleDetailView = () => import('../views/article/ArticleDetailView.vue')
 const ArticleEditView = () => import('../views/article/ArticleEditView.vue')
 const LoginView = () => import('../views/auth/LoginView.vue')
@@ -17,7 +19,7 @@ const routes = [
   {
     path: '/',
     name: 'home',
-    component: ArticleListView,
+    component: HomeView,
     meta: {
       title: '首页 - 技术博客',
       breadcrumb: '首页'
@@ -44,10 +46,20 @@ const routes = [
   {
     path: '/article',
     name: 'article',
+    component: ArticleBrowseView,
+    meta: {
+      title: '浏览文章 - 技术博客',
+      breadcrumb: '浏览文章'
+    }
+  },
+  {
+    path: '/admin/articles',
+    name: 'adminArticles',
     component: ArticleListView,
     meta: {
-      title: '文章列表 - 技术博客',
-      breadcrumb: '文章列表'
+      title: '文章管理 - 技术博客',
+      breadcrumb: '文章管理',
+      requiresAuth: true // 需要登录才能访问管理页面
     }
   },
   {

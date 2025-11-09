@@ -36,7 +36,14 @@ public class ArticleVO {
      * 评论次数
      */
     private Integer commentCount;
-
+    /**
+     * 文章状态 0是草稿 1是发布
+     */
+    private Integer status;
+    /**
+     * 发布时间
+     */
+    private LocalDateTime publishTime;
     /**
      * 点赞次数
      */

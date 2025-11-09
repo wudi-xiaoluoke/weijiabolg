@@ -69,7 +69,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
-import { useArticleStore } from '../store/modules/article'
+import { useArticleStore } from '@/stores/articleStore'
 import { useSocialStore } from '../store/modules/social'
 
 const props = defineProps({
@@ -118,10 +118,10 @@ const fetchArticles = async () => {
     }
     
     // 调用正确的方法名
-    const pageData = await articleStore.fetchArticleList(params)
-    // 根据后端修改后的数据格式调整
-    articles.value = pageData.records || []
-    pagination.total = pageData.total || 0
+    await articleStore.fetchArticles(params)
+    // 直接从store获取处理后的数据和分页信息
+    articles.value = articleStore.articles || []
+    pagination.total = articleStore.total || 0
   } catch (error) {
     console.error('获取文章列表失败:', error)
   } finally {

@@ -1,596 +1,1322 @@
 <template>
   <div class="article-list-container">
-    <Breadcrumb />
-    
-    <el-card class="article-list-card" shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <span>全部文章</span>
+    <!-- 顶部导航栏 -->
+    <div class="header-section">
+      <div class="header-left">
+        <el-breadcrumb separator="/" class="breadcrumb">
+          <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+          <el-breadcrumb-item>文章管理</el-breadcrumb-item>
+          <el-breadcrumb-item>文章列表</el-breadcrumb-item>
+        </el-breadcrumb>
+        <h1 class="page-title">文章列表</h1>
+      </div>
+      <el-button 
+        type="primary" 
+        @click="handleCreateArticle" 
+        :icon="Plus"
+        class="create-btn"
+      >
+        新增文章
+      </el-button>
+    </div>
+
+    <!-- 统计卡片部分 - 使用网格布局 -->
+    <div class="stats-grid">
+      <el-card class="stat-card" shadow="hover" :body-style="{ padding: '20px' }">
+        <div class="stat-card-content">
+          <div class="stat-icon-wrapper primary">
+            <el-icon><Document /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalArticles }}</div>
+            <div class="stat-label">总文章数</div>
+          </div>
+        </div>
+      </el-card>
+      
+      <el-card class="stat-card" shadow="hover" :body-style="{ padding: '20px' }">
+        <div class="stat-card-content">
+          <div class="stat-icon-wrapper success">
+            <el-icon><Check /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ publishedArticles }}</div>
+            <div class="stat-label">已发布</div>
+          </div>
+        </div>
+      </el-card>
+      
+      <el-card class="stat-card" shadow="hover" :body-style="{ padding: '20px' }">
+        <div class="stat-card-content">
+          <div class="stat-icon-wrapper warning">
+            <el-icon><Edit /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ draftArticles }}</div>
+            <div class="stat-label">草稿</div>
+          </div>
+        </div>
+      </el-card>
+      
+      <el-card class="stat-card" shadow="hover" :body-style="{ padding: '20px' }">
+        <div class="stat-card-content">
+          <div class="stat-icon-wrapper info">
+            <el-icon><View /></el-icon>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value">{{ totalViews }}</div>
+            <div class="stat-label">总浏览量</div>
+          </div>
+        </div>
+      </el-card>
+    </div>
+
+    <!-- 搜索筛选区 - 现代化设计 -->
+    <div class="filter-section">
+      <el-card shadow="never" class="search-card">
+        <el-form :model="searchForm" :inline="true" class="search-form">
+          <el-form-item label="文章标题" class="search-item">
+            <el-input
+              v-model="searchForm.title"
+              placeholder="请输入文章标题"
+              clearable
+              prefix-icon="Search"
+              :maxlength="100"
+              class="search-input"
+            />
+          </el-form-item>
+          
+          <el-form-item label="文章分类" class="search-item">
+            <el-select
+              v-model="searchForm.category"
+              placeholder="请选择分类"
+              clearable
+              filterable
+              :loading="loadingCategories"
+              class="search-select"
+            >
+              <el-option
+                v-for="category in categories"
+                :key="category.id"
+                :label="category.name"
+                :value="category.id"
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="文章状态" class="search-item">
+            <el-select 
+              v-model="searchForm.status" 
+              placeholder="请选择状态" 
+              clearable
+              class="search-select"
+            >
+              <el-option label="已发布" :value="1" />
+              <el-option label="草稿" :value="0" />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="发布时间" class="search-item">
+            <el-date-picker
+              v-model="searchForm.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+              class="date-picker"
+            />
+          </el-form-item>
+          
+          <el-form-item class="search-item search-actions">
+            <el-button 
+              type="primary" 
+              @click="handleSearch"
+              :icon="Search"
+              class="search-btn"
+            >
+              搜索
+            </el-button>
+            <el-button 
+              @click="handleReset"
+              :icon="Refresh"
+              class="reset-btn"
+            >
+              重置
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </el-card>
+    </div>
+
+    <!-- 文章列表表格 - 增强的视觉设计 -->
+    <div class="table-section">
+      <div class="table-header">
+        <h2 class="table-title">文章数据</h2>
+        <div class="table-actions">
+          <el-button 
+            v-if="selection.length > 0" 
+            @click="batchDialogVisible = true"
+            :icon="Operation"
+            class="batch-btn"
+          >
+            批量操作 ({{ selection.length }})
+          </el-button>
+        </div>
+      </div>
+      
+      <el-card shadow="never" class="table-card">
+        <div class="table-container" v-loading="loading">
+          <el-table
+            v-loading="loading"
+            :data="paginatedArticles"
+            style="width: 100%"
+            border
+            stripe
+            row-key="id"
+            @selection-change="handleSelectionChange"
+            :header-cell-style="{ 
+              'background-color': '#f8fafc', 
+              'font-weight': '600',
+              'color': '#334155'
+            }"
+          >
+            <el-table-column type="selection" width="55" fixed="left" />
+            <el-table-column label="ID" width="80" fixed="left">
+              <template #default="{ $index }">
+                {{ (pagination.currentPage - 1) * pagination.pageSize + $index + 1 }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="title" label="文章标题" min-width="350" show-overflow-tooltip>
+              <template #default="{ row }">
+                <router-link 
+                  :to="`/article/detail/${row.id}`" 
+                  class="title-link"
+                  target="_blank"
+                >
+                  {{ row.title }}
+                </router-link>
+              </template>
+            </el-table-column>
+            
+            <el-table-column prop="categoryName" label="分类" width="120">
+              <template #default="{ row }">
+                <el-tag 
+                  :type="getCategoryType(row.categoryName)" 
+                  size="small"
+                  class="category-tag"
+                >
+                  {{ row.categoryName || '未分类' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            
+            <el-table-column label="标签" width="200">
+              <template #default="{ row }">
+                <div class="tags-container">
+                  <el-tag
+                    v-for="(tag, index) in row.tags.slice(0, 5)"
+                    :key="index"
+                    size="small"
+                    :class="`tag-item tag-${index % 5}`"
+                  >
+                    {{ tag }}
+                  </el-tag>
+                  <el-tag 
+                    v-if="row.tags.length > 5" 
+                    size="small" 
+                    plain
+                    class="more-tags"
+                  >
+                    +{{ row.tags.length - 5 }}
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.status === 1 ? 'success' : 'warning'"
+                  size="small"
+                  class="status-tag"
+                >
+                  {{ row.status === 1 ? '已发布' : '草稿' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            
+            <el-table-column prop="viewCount" label="浏览量" width="100" align="center">
+              <template #default="{ row }">
+                <div class="count-item">
+                  <el-icon class="count-icon"><View /></el-icon>
+                  {{ row.viewCount || 0 }}
+                </div>
+              </template>
+            </el-table-column>
+            
+            <el-table-column prop="commentCount" label="评论数" width="100" align="center">
+              <template #default="{ row }">
+                <div class="count-item">
+                  <el-icon class="count-icon"><ChatDotRound /></el-icon>
+                  {{ row.commentCount || 0 }}
+                </div>
+              </template>
+            </el-table-column>
+            
+            <el-table-column prop="publishTime" label="发布时间" width="180" align="center">
+              <template #default="{ row }">
+                <div class="date-info">
+                  {{ formatDate(row.publishTime) }}
+                </div>
+              </template>
+            </el-table-column>
+            
+            <el-table-column fixed="right" label="操作" width="180" align="center">
+              <template #default="{ row }">
+                <el-button-group class="action-buttons">
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="handleViewArticle(row.id)"
+                    :icon="View"
+                    class="view-btn"
+                  >
+                    查看
+                  </el-button>
+                  <el-button
+                    type="success"
+                    size="small"
+                    @click="handleEditArticle(row.id)"
+                    :icon="Edit"
+                    class="edit-btn"
+                  >
+                    编辑
+                  </el-button>
+                  <el-button
+                    type="danger"
+                    size="small"
+                    @click="handleDeleteArticle(row)"
+                    :icon="Delete"
+                    class="delete-btn"
+                  >
+                    删除
+                  </el-button>
+                </el-button-group>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 空状态 - 增强的视觉设计 -->
+          <div v-if="!loading && paginatedArticles.length === 0" class="empty-state">
+            <div class="empty-container">
+              <el-empty description="暂无文章数据" :image-size="120" />
+              <el-button 
+                type="primary" 
+                @click="handleCreateArticle" 
+                class="empty-action-btn"
+                :icon="Plus"
+              >
+                创建第一篇文章
+              </el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 分页组件 - 居中显示 -->
+        <div v-if="paginatedArticles.length > 0" class="pagination-wrapper">
+          <el-pagination
+            v-model:current-page="pagination.currentPage"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="totalArticles"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            class="pagination"
+            :pager-count="5"
+          />
+        </div>
+      </el-card>
+    </div>
+
+    <!-- 批量操作对话框 - 现代化设计 -->
+    <el-dialog
+      v-model="batchDialogVisible"
+      title="批量操作"
+      width="500px"
+      @close="handleBatchDialogClose"
+      class="batch-dialog"
+      :custom-class="'modern-dialog'"
+    >
+      <div class="batch-actions-content">
+        <div class="batch-info">
+          <p>已选择 <strong>{{ selection.length }}</strong> 篇文章</p>
+        </div>
+        
+        <div class="action-selection">
+          <el-radio-group v-model="batchAction" class="action-radio-group">
+            <el-radio :label="'delete'" class="action-radio">
+              <el-icon class="radio-icon danger"><Delete /></el-icon>
+              <span>批量删除</span>
+            </el-radio>
+            <el-radio :label="'publish'" class="action-radio">
+              <el-icon class="radio-icon success"><Check /></el-icon>
+              <span>批量发布</span>
+            </el-radio>
+            <el-radio :label="'draft'" class="action-radio">
+              <el-icon class="radio-icon warning"><Edit /></el-icon>
+              <span>批量设为草稿</span>
+            </el-radio>
+            <el-radio :label="'move'" class="action-radio">
+              <el-icon class="radio-icon primary"><SwitchButton /></el-icon>
+              <span>批量移动到分类</span>
+            </el-radio>
+          </el-radio-group>
+        </div>
+        
+        <div 
+          v-if="batchAction === 'move'" 
+          class="category-selection"
+        >
+          <el-form-item label="目标分类">
+            <el-select
+              v-model="targetCategory"
+              placeholder="请选择目标分类"
+              style="width: 100%"
+              class="category-select"
+            >
+              <el-option
+                v-for="category in categories"
+                :key="category.id"
+                :label="category.name"
+                :value="category.id"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
+      </div>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="batchDialogVisible = false">取消</el-button>
+          <el-button 
+            type="primary" 
+            @click="handleBatchConfirm" 
+            :loading="batchLoading"
+            :disabled="batchAction === 'move' && !targetCategory"
+          >
+            确认操作
+          </el-button>
         </div>
       </template>
-      
-      <!-- 文章统计信息 -->
-      <div class="article-stats">
-        <el-row :gutter="20">
-          <el-col :xs="12" :sm="6">
-            <div class="stat-item">
-              <span class="stat-label">总文章数</span>
-              <span class="stat-value">{{ total }}</span>
-            </div>
-          </el-col>
-          <el-col :xs="12" :sm="6">
-            <div class="stat-item">
-              <span class="stat-label">总阅读量</span>
-              <span class="stat-value">{{ totalViews }}</span>
-            </div>
-          </el-col>
-          <el-col :xs="12" :sm="6">
-            <div class="stat-item">
-              <span class="stat-label">总评论数</span>
-              <span class="stat-value">{{ totalComments }}</span>
-            </div>
-          </el-col>
-          <el-col :xs="12" :sm="6">
-            <div class="stat-item">
-              <span class="stat-label">当前显示</span>
-              <span class="stat-value">{{ filteredArticles.length }}</span>
-            </div>
-          </el-col>
-        </el-row>
-      </div>
-      
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索文章标题"
-        prefix-icon="el-icon-search"
-        class="search-input"
-        @keyup.enter="handleSearch"
-      />
-      
-      <el-table :data="filteredArticles" style="width: 100%">
-        <el-table-column prop="title" label="标题" min-width="300" />
-        <el-table-column prop="category" label="分类" width="120">
-          <template #default="scope">
-            {{ getCategoryName(scope.row.category) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="发布日期" width="150">
-          <template #default="scope">
-            {{ formatDate(scope.row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="viewCount" label="阅读量" width="100" />
-        <el-table-column prop="commentCount" label="评论数" width="100" />
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="scope">
-            <div class="article-actions">
-              <el-button size="small" @click="viewArticle(scope.row.id)">查看</el-button>
-              <el-button size="small" type="primary" @click="editArticle(scope.row.id)">编辑</el-button>
-              <el-button size="small" type="danger" @click="deleteArticle(scope.row.id)">删除</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          layout="total, sizes, prev, pager, next, jumper"
-          :total="total"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import Breadcrumb from '@/components/common/Breadcrumb.vue'
-import { articleAPI } from '@/api/index.js'
+import {
+  Plus,
+  Search,
+  Refresh,
+  Document,
+  Check,
+  Edit,
+  View,
+  Delete,
+  ChatDotRound,
+  Operation,
+  SwitchButton
+} from '@element-plus/icons-vue'
+import { useArticleStore } from '@/stores/articleStore'
+import { useCategoryStore } from '@/stores/categoryStore'
+import { useTagStore } from '@/stores/tagStore'
+import { articleAPI } from '@/api'
 
+// 使用store获取数据
+const articleStore = useArticleStore()
+const categoryStore = useCategoryStore()
+const tagStore = useTagStore()
+
+// 响应式数据
+const loadingCategories = ref(false)
+const searchForm = ref({
+  title: '',
+  category: '',
+  status: '',
+  dateRange: null
+})
+const pagination = ref({
+  currentPage: 1,
+  pageSize: 10,
+  total: 0
+})
+const selection = ref([])
+const batchDialogVisible = ref(false)
+const batchAction = ref('delete')
+const targetCategory = ref('')
+const batchLoading = ref(false)
+
+// 路由
 const router = useRouter()
-const route = useRoute()
 
-// 状态管理
-const searchQuery = ref('')
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const articles = ref([])
-const loading = ref(false)
-
-// 计算过滤后的文章列表
-const filteredArticles = computed(() => {
-  if (!searchQuery.value) return articles.value
-  
-  return articles.value.filter(article => 
-    article.title.toLowerCase().includes(searchQuery.value.toLowerCase())
-  )
+// 计算属性
+const paginatedArticles = computed(() => {
+  return Array.isArray(articleStore.articles) ? articleStore.articles : []
 })
 
-// 计算统计数据
+const totalArticles = computed(() => {
+  return articleStore.total || 0
+})
+
+const publishedArticles = computed(() => {
+  if (!Array.isArray(articleStore.articles)) {
+    return 0
+  }
+  return articleStore.articles.filter(article => article?.status === 1).length // 1表示已发布
+})
+
+const draftArticles = computed(() => {
+  if (!Array.isArray(articleStore.articles)) {
+    return 0
+  }
+  return articleStore.articles.filter(article => article?.status === 0).length // 0表示草稿
+})
+
 const totalViews = computed(() => {
-  return articles.value.reduce((sum, article) => sum + (article.views || 0), 0)
+  if (!Array.isArray(articleStore.articles)) {
+    return 0
+  }
+  return articleStore.articles.reduce((sum, article) => sum + (article?.viewCount || 0), 0)
 })
 
-const totalComments = computed(() => {
-  return articles.value.reduce((sum, article) => sum + (article.comments || 0), 0)
+const categories = computed(() => {
+  return categoryStore.categories || []
 })
 
-// 生命周期钩子
-onMounted(() => {
-  fetchArticles()
+const loading = computed(() => {
+  return articleStore.loading
 })
 
-// 从后端获取文章数据
-const fetchArticles = async () => {
-  loading.value = true
+// 获取分类的标签类型
+const getCategoryType = (categoryName) => {
+  const typeMap = ['primary', 'success', 'warning', 'info', 'danger']
+  if (!categoryName) return 'default'
+  return typeMap[categoryName.length % typeMap.length]
+}
+
+// 处理表格选择
+const handleSelectionChange = (val) => {
+  selection.value = val.map(item => item.id)
+}
+
+// 初始化数据
+const initData = async () => {
   try {
-    const params = {
-      page: currentPage.value,
-      pageSize: pageSize.value,
-      keyword: searchQuery.value || undefined
-    }
-    const response = await articleAPI.getArticles(params)
+    await Promise.all([
+      fetchArticles(),
+      fetchCategories(),
+      fetchTags()
+    ])
+  } catch (error) {
+    console.error('初始化数据失败:', error)
+    ElMessage.error('初始化数据失败')
+  }
+}
+
+// 获取文章列表
+const fetchArticles = async () => {
+  try {
+    const { currentPage, pageSize } = pagination.value
+    const { title, category, status, dateRange } = searchForm.value
     
-    // 适配后端返回的Result对象格式
-    const data = response.data || response
-    // 从PageResultVO中获取数据
-    articles.value = data.records || data.list || []
-    // 修复：从pagination对象中获取total值
-    total.value = data.pagination?.total || data.total || 0
+    const params = {
+      page: currentPage,
+      pageSize,
+      title,
+      categoryId: category,
+      status,
+      sortBy: 'publishTime', // 默认按发布时间排序
+      sortOrder: 'desc', // 默认降序，最新的在前面
+      ...(dateRange && {
+        startTime: dateRange[0],
+        endTime: dateRange[1]
+      })
+    }
+    
+    await articleStore.fetchArticles(params)
+    // 使用articleStore.paginationInfo而不是不存在的articleStore.pagination
+    pagination.value = {
+      currentPage: articleStore.paginationInfo.currentPage,
+      pageSize: articleStore.paginationInfo.pageSize,
+      total: articleStore.paginationInfo.total
+    }
   } catch (error) {
     console.error('获取文章列表失败:', error)
-    ElMessage.error('获取文章列表失败，请稍后重试')
-    
-    // 出错时使用模拟数据作为降级方案
-    articles.value = [
-      {
-        id: 1,
-        title: 'Vue 3 组合式API深度解析',
-        category: '前端开发',
-        createdAt: '2024-01-15',
-        viewCount: 1245,
-        commentCount: 42
-      },
-      {
-        id: 2,
-        title: 'Element Plus 组件库最佳实践',
-        category: '前端框架',
-        createdAt: '2024-01-10',
-        viewCount: 986,
-        commentCount: 35
-      },
-      {
-        id: 3,
-        title: 'Vite 构建工具性能优化技巧',
-        category: '开发工具',
-        createdAt: '2024-01-05',
-        viewCount: 763,
-        commentCount: 28
-      },
-      {
-        id: 4,
-        title: 'TypeScript 高级类型系统详解',
-        category: '编程语言',
-        createdAt: '2024-01-01',
-        viewCount: 1542,
-        commentCount: 56
-      },
-      {
-        id: 5,
-        title: '前端工程化实践指南',
-        category: '工程化',
-        createdAt: '2023-12-28',
-        viewCount: 1024,
-        commentCount: 45
-      }
-    ]
-    total.value = articles.value.length
+    ElMessage.error('获取文章列表失败')
+  }
+}
+
+// 获取分类列表
+const fetchCategories = async () => {
+  loadingCategories.value = true
+  try {
+    await categoryStore.fetchCategories()
+  } catch (error) {
+    console.error('获取分类列表失败:', error)
+    ElMessage.error('获取分类列表失败')
   } finally {
-    loading.value = false
+    loadingCategories.value = false
   }
 }
 
-// 格式化日期函数
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  
-  // 尝试将各种格式的日期字符串转换为Date对象
-  const date = new Date(dateString)
-  
-  // 检查是否为有效日期
-  if (isNaN(date.getTime())) return dateString
-  
-  // 格式化为YYYY-MM-DD
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  
-  return `${year}-${month}-${day}`
-}
-
-// 获取分类名称
-const getCategoryName = (category) => {
-  // 处理分类对象的各种可能情况
-  if (!category || category === '' || (Array.isArray(category) && category.length === 0)) {
-    return '暂无分类'
+// 获取标签列表
+const fetchTags = async () => {
+  try {
+    await tagStore.fetchTags()
+  } catch (error) {
+    console.error('获取标签列表失败:', error)
   }
-  
-  // 如果是字符串，直接返回
-  if (typeof category === 'string') return category
-  
-  // 如果是对象，尝试获取name字段
-  if (typeof category === 'object') {
-    const categoryName = category.name || category.title || category.categoryName
-    return categoryName || '暂无分类'
-  }
-  
-  // 其他情况返回'暂无分类'
-  return '暂无分类'
 }
 
-// 方法
-const handleBack = () => {
-  router.back()
+// 格式化日期
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-'  
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
-// 处理搜索
+// 搜索处理
 const handleSearch = () => {
-  currentPage.value = 1
+  pagination.value.currentPage = 1
   fetchArticles()
 }
 
-const createArticle = () => {
-  router.push('/article/edit')
+// 重置处理
+const handleReset = () => {
+  searchForm.value = {
+    title: '',
+    category: '',
+    status: '',
+    dateRange: null
+  }
+  pagination.value.currentPage = 1
+  fetchArticles()
 }
 
-const viewArticle = (id) => {
-  // 使用location.href代替router.push以强制刷新页面
-  location.href = `/article/detail/${id}`
+// 创建文章
+const handleCreateArticle = () => {
+  router.push('/article/create')
 }
 
-const editArticle = (id) => {
+// 查看文章
+const handleViewArticle = (id) => {
+  router.push(`/article/detail/${id}`)
+}
+
+// 编辑文章
+const handleEditArticle = (id) => {
   router.push(`/article/edit/${id}`)
 }
 
-const deleteArticle = (id) => {
-  ElMessageBox.confirm(
-    '确定要删除这篇文章吗？此操作不可撤销。',
-    '删除确认',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  )
-    .then(async () => {
-      // 调用API删除文章
-      try {
-        await articleAPI.deleteArticle(id)
-        // 更新本地列表
-        articles.value = articles.value.filter(article => article.id !== id)
-        total.value = articles.value.length
-        ElMessage.success('文章删除成功')
-      } catch (error) {
-        console.error('删除文章失败:', error)
-        ElMessage.error('删除文章失败，请稍后重试')
+// 删除文章
+const handleDeleteArticle = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除文章「${row.title}」吗？此操作不可撤销。`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'delete-confirm-dialog'
       }
-    })
-    .catch(() => {
-      ElMessage.info('已取消删除')
-    })
+    )
+    
+    await articleAPI.deleteArticle(row.id)
+    ElMessage.success('删除成功')
+    fetchArticles()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+      console.error('删除文章失败:', error)
+    }
+  }
 }
 
+// 批量操作确认
+const handleBatchConfirm = async () => {
+  if (selection.value.length === 0) {
+    ElMessage.warning('请选择要操作的文章')
+    return
+  }
+
+  let confirmMsg = ''
+  let successMsg = ''
+  
+  switch (batchAction.value) {
+    case 'delete':
+      confirmMsg = `确定要删除选中的 ${selection.value.length} 篇文章吗？此操作不可撤销。`
+      successMsg = '批量删除成功'
+      break
+    case 'publish':
+      confirmMsg = `确定要将选中的 ${selection.value.length} 篇文章设置为已发布状态吗？`
+      successMsg = '批量发布成功'
+      break
+    case 'draft':
+      confirmMsg = `确定要将选中的 ${selection.value.length} 篇文章设置为草稿状态吗？`
+      successMsg = '批量设为草稿成功'
+      break
+    case 'move':
+      if (!targetCategory.value) {
+        ElMessage.warning('请选择目标分类')
+        return
+      }
+      const targetCategoryName = categories.value.find(c => c.id === targetCategory.value)?.name || ''
+      confirmMsg = `确定要将选中的 ${selection.value.length} 篇文章移动到分类「${targetCategoryName}」吗？`
+      successMsg = '批量移动成功'
+      break
+  }
+
+  try {
+    await ElMessageBox.confirm(confirmMsg, '操作确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: batchAction.value === 'delete' ? 'warning' : 'info'
+    })
+    
+    batchLoading.value = true
+    let params = { action: batchAction.value }
+    
+    if (batchAction.value === 'move' && targetCategory.value) {
+      params.categoryId = targetCategory.value
+    }
+    
+    await articleAPI.batchUpdateArticles(selection.value, params)
+    ElMessage.success(successMsg)
+    batchDialogVisible.value = false
+    fetchArticles()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('操作失败')
+      console.error('批量操作失败:', error)
+    }
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+// 关闭批量对话框
+const handleBatchDialogClose = () => {
+  batchAction.value = 'delete'
+  targetCategory.value = ''
+}
+
+// 分页处理
 const handleSizeChange = (size) => {
-  pageSize.value = size
+  pagination.value.pageSize = size
   fetchArticles()
 }
 
 const handleCurrentChange = (current) => {
-  currentPage.value = current
+  pagination.value.currentPage = current
   fetchArticles()
 }
+
+// 生命周期
+onMounted(() => {
+  initData()
+})
 </script>
 
 <style scoped>
+/* 全局样式重置 */
 .article-list-container {
-  padding: 20px;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  overflow-x: auto;
-  font-size: 15px; /* 增加整体字体大小 */
+  padding: 24px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.card-header {
+/* 顶部导航栏 */
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breadcrumb {
+  font-size: 14px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.create-btn {
+  padding: 10px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+}
+
+/* 统计卡片网格 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.stat-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.stat-icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.stat-icon-wrapper.primary {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+.stat-icon-wrapper.success {
+  background-color: #f6ffed;
+  color: #52c41a;
+}
+
+.stat-icon-wrapper.warning {
+  background-color: #fffbe6;
+  color: #faad14;
+}
+
+.stat-icon-wrapper.info {
+  background-color: #f0f5ff;
+  color: #722ed1;
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* 筛选区域 */
+.filter-section {
+  margin-bottom: 32px;
+}
+
+.search-card {
+  border-radius: 12px;
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.search-form {
+  padding: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.search-item {
+  margin-bottom: 0;
+}
+
+.search-input,
+.search-select,
+.date-picker {
+  width: 200px;
+}
+
+.search-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.search-btn,
+.reset-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+/* 表格区域 */
+.table-section {
+  margin-bottom: 32px;
+}
+
+.table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.article-stats {
-  background-color: #f5f7fa;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
+.table-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
 }
 
-.stat-item {
-  background-color: white;
+.batch-btn {
+  padding: 8px 16px;
+  font-size: 14px;
   border-radius: 6px;
-  padding: 16px 20px; /* 增加内边距 */
-  text-align: center;
-  border: 1px solid #ebeef5;
+}
+
+.table-card {
+  border-radius: 12px;
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.table-container {
+  position: relative;
+  min-height: 400px;
+}
+
+:deep(.el-table) {
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+:deep(.el-table__inner-wrapper) {
+  border-radius: 8px;
+}
+
+:deep(.el-table__row) {
+  transition: background-color 0.2s ease;
+}
+
+:deep(.el-table__row:hover) {
+  background-color: #f8fafc !important;
+}
+
+.title-link {
+  color: #1e293b;
+  text-decoration: none;
+  font-weight: 500;
   transition: all 0.3s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* 增加轻微阴影 */
+  display: inline-block;
 }
 
-.stat-item:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* 增强悬停阴影 */
-  transform: translateY(-2px);
+.title-link:hover {
+  color: #1890ff;
+  transform: translateX(2px);
 }
 
-.stat-label {
-  display: block;
-  font-size: 15px; /* 增加标签字体大小 */
-  color: #409eff; /* 改为更醒目的颜色 */
-  margin-bottom: 6px;
+/* 标签样式 */
+.category-tag,
+.status-tag {
   font-weight: 500;
 }
 
-.stat-value {
-  display: block;
-  font-size: 24px; /* 增大数值字体 */
-  font-weight: 700; /* 加粗 */
-  color: #303133;
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.search-input {
-  margin-bottom: 20px;
+.tag-item {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.tag-0 { color: #4f46e5; background-color: #eef2ff; }
+.tag-1 { color: #10b981; background-color: #d1fae5; }
+.tag-2 { color: #f59e0b; background-color: #fef3c7; }
+.tag-3 { color: #ef4444; background-color: #fee2e2; }
+.tag-4 { color: #8b5cf6; background-color: #ede9fe; }
+
+.more-tags {
+  font-size: 12px;
+}
+
+/* 统计项 */
+.count-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.count-icon {
+  font-size: 16px;
+}
+
+/* 日期信息 */
+.date-info {
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.view-btn,
+.edit-btn,
+.delete-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.delete-btn {
+  transition: all 0.3s ease;
+}
+
+.delete-btn:hover {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px 20px;
+}
+
+.empty-container {
+  text-align: center;
+}
+
+.empty-action-btn {
+  margin-top: 24px;
+  padding: 10px 24px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+/* 分页 */
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+:deep(.el-pagination) {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+:deep(.el-pagination__sizes .el-input__wrapper) {
+  width: 100px;
+}
+
+/* 批量操作对话框 */
+.modern-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+:deep(.el-dialog__header) {
+  background-color: #f8fafc;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+:deep(.el-dialog__title) {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+:deep(.el-dialog__body) {
+  padding: 24px;
+}
+
+.batch-actions-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.batch-info {
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border-left: 4px solid #1890ff;
+}
+
+.batch-info p {
+  margin: 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.batch-info strong {
+  color: #1890ff;
+  font-size: 16px;
+}
+
+.action-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.action-radio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.action-radio:hover {
+  background-color: #f8fafc;
+}
+
+.radio-icon {
+  font-size: 20px;
+}
+
+.radio-icon.primary {
+  color: #1890ff;
+}
+
+.radio-icon.success {
+  color: #52c41a;
+}
+
+.radio-icon.warning {
+  color: #faad14;
+}
+
+.radio-icon.danger {
+  color: #ff4d4f;
+}
+
+.category-selection {
+  margin-top: 8px;
+}
+
+.category-select {
   width: 100%;
-  max-width: 500px;
-  font-size: 15px; /* 增加搜索框字体大小 */
 }
 
-.pagination-container {
-  margin-top: 20px;
+:deep(.el-dialog__footer) {
+  padding: 20px 24px;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   justify-content: flex-end;
-  padding-top: 16px;
+  gap: 12px;
 }
 
-/* 表格样式优化 - 增强可读性 */
-.el-table {
-  --el-table-header-bg-color: #f0f2f5;
-  --el-table-border-color: #dcdfe6;
-  font-size: 15px; /* 增加表格字体大小 */
-  line-height: 1.8; /* 增加行高 */
+/* 删除确认对话框 */
+:deep(.delete-confirm-dialog .el-message-box__title) {
+  color: #ff4d4f;
 }
 
-/* 确保表格内容清晰可见 */
-.el-table .cell {
-  font-size: 15px;
-  padding: 12px 8px; /* 增加单元格内边距 */
-  color: #303133; /* 加深文字颜色 */
-}
-
-/* 表头样式优化 */
-.el-table__header th {
-  font-weight: 700;
-  background-color: #f0f2f5;
-  font-size: 16px;
-  color: #303133;
-  padding: 14px 8px;
-}
-
-/* 表格行样式优化 */
-.el-table__row {
-  height: auto;
-  min-height: 52px;
-  transition: all 0.2s ease;
-}
-
-/* 增强悬停效果 */
-.el-table__row:hover > td {
-  background-color: #ecf5ff !important;
-}
-
-/* 斑马纹优化 */
-.el-table--striped .el-table__row--striped > td {
-  background-color: #fafafa;
-}
-
-/* 表格边框优化 */
-.el-table th,
-.el-table td {
-  border-bottom: 1px solid #ebeef5;
-}
-
-/* 操作按钮样式优化 */
-.article-actions {
-  display: flex;
-  gap: 10px;
-  padding: 6px 0;
-  width: 100%;
-  flex-wrap: nowrap;
-}
-
-.article-actions .el-button--small {
-  padding: 8px 16px; /* 增大按钮尺寸 */
-  font-size: 14px; /* 增加按钮字体大小 */
-  border-radius: 6px;
-  flex-shrink: 0;
-  min-width: 60px; /* 确保按钮有足够宽度 */
-}
-
-/* 确保操作列有足够宽度 */
-.el-table-column--fixed-right {
-  width: 280px !important;
-  min-width: 280px !important;
-  box-sizing: border-box;
-}
-
-/* 搜索框样式优化 */
-.search-input .el-input__inner {
-  padding: 12px;
-  font-size: 15px;
-}
-
-/* 分页组件样式优化 */
-.el-pagination {
-  font-size: 14px;
-}
-
-.el-pagination__sizes .el-input__inner {
-  font-size: 14px;
-}
-
-/* 响应式设计增强 */
-@media (max-width: 1024px) {
-  .article-list-container {
-    padding: 15px;
-    font-size: 14px;
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   
-  .search-input {
-    max-width: 100%;
-  }
-  
-  .stat-value {
-    font-size: 22px;
-  }
-  
-  .el-table {
-    font-size: 14px;
+  .search-input,
+  .search-select,
+  .date-picker {
+    width: 180px;
   }
 }
 
 @media (max-width: 768px) {
   .article-list-container {
-    padding: 10px;
-    font-size: 14px;
+    padding: 16px;
   }
   
-  .card-header {
+  .header-section {
     flex-direction: column;
     align-items: flex-start;
-    gap: 10px;
+    gap: 16px;
   }
   
-  .pagination-container {
-    justify-content: center;
+  .page-title {
+    font-size: 24px;
   }
   
-  .stat-item {
-    padding: 12px 16px;
-  }
-  
-  .stat-label {
-    font-size: 14px;
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
   
   .stat-value {
-    font-size: 20px;
+    font-size: 32px;
   }
   
-  /* 表格在移动设备上的优化 */
-  .el-table {
+  .search-form {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .search-input,
+  .search-select,
+  .date-picker {
+    width: 100%;
+  }
+  
+  .search-actions {
+    justify-content: center;
+  }
+  
+  .table-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .pagination-wrapper {
+    padding: 16px;
+  }
+  
+  :deep(.el-table) {
     font-size: 14px;
-    overflow-x: auto;
   }
   
-  .el-table__header-wrapper, .el-table__body-wrapper {
-    overflow-x: auto;
+  :deep(.el-table__column) {
+    padding-left: 8px;
+    padding-right: 8px;
   }
   
-  .el-table .cell {
-    padding: 10px 6px;
-    font-size: 13px;
+  .action-buttons {
+    flex-direction: column;
+    gap: 4px;
   }
   
-  /* 调整按钮大小 */
-  .article-actions .el-button--small {
-    padding: 7px 12px;
-    font-size: 13px;
-    min-width: 50px;
+  .view-btn,
+  .edit-btn,
+  .delete-btn {
+    padding: 2px 8px;
+    font-size: 11px;
   }
   
-  /* 紧凑显示操作列 */
-  .el-table-column--fixed-right {
-    width: 240px !important;
-    min-width: 240px !important;
+  .tags-container {
+    flex-wrap: wrap;
+  }
+  
+  .tag-item {
+    font-size: 11px;
+    padding: 1px 6px;
   }
 }
 
 @media (max-width: 480px) {
   .article-list-container {
-    padding: 8px;
-    font-size: 13px;
+    padding: 12px;
   }
   
-  .stat-item {
-    padding: 10px 12px;
+  .page-title {
+    font-size: 20px;
   }
   
-  .stat-label {
-    font-size: 13px;
+  .stat-card-content {
+    gap: 12px;
+  }
+  
+  .stat-icon-wrapper {
+    width: 50px;
+    height: 50px;
+    font-size: 20px;
   }
   
   .stat-value {
-    font-size: 18px;
+    font-size: 28px;
   }
   
-  .el-table-column {
-    min-width: 70px;
-  }
-  
-  /* 进一步优化操作列在极小屏幕上的显示 */
-  .el-table-column--fixed-right {
-    width: 220px !important;
-    min-width: 220px !important;
-  }
-  
-  .article-actions {
+  :deep(.el-pagination) {
     flex-wrap: wrap;
-    gap: 6px;
+    justify-content: center;
   }
   
-  .article-actions .el-button--small {
-    margin: 2px 0;
-    padding: 6px 10px;
-    font-size: 12px;
-    min-width: 45px;
+  :deep(.el-pagination__sizes) {
+    order: -1;
+    width: 100%;
+    text-align: center;
   }
-  
-  .el-table .cell {
-    padding: 8px 4px;
-    font-size: 12px;
-  }
-}
-
-/* 确保表格内容在各种屏幕尺寸下都能正常显示 */
-.el-table__body {
-  transition: all 0.3s ease;
-}
-
-/* 确保表格内容颜色对比度足够 */
-.el-table .cell {
-  color: #303133;
-  font-weight: 400;
-}
-
-/* 改善标题列的显示 */
-.el-table-column[prop="title"] .cell {
-  font-weight: 500;
-  color: #1e293b;
 }
 </style>
